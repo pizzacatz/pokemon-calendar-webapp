@@ -108,13 +108,16 @@ routes each height message to its own iframe automatically.
   only the selected categories (additive); "All" resets. Works in every view
   (adds/removes FullCalendar event sources). Empty filter results show a
   "tap All to reset" note.
-- **Mobile (≤767px):** month cells show dots instead of chips; tapping a day
-  opens a list modal (title, time below); list rows stack title / time /
-  address; toolbar stacks.
+- **Mobile (≤767px):** month cells show dots instead of chips (up to 4; busy
+  days show 3 dots + a "+N" count); tapping a day with events opens a list
+  modal (title, time below, › chevrons); list rows stack title / time /
+  address; toolbar stacks; modals get a full-width bottom Close button and
+  anchor near the tap inside embeds.
 - **Event popup:** title, when (ET), where (Google Maps directions link),
-  description text (URLs become links), inline images from Drive attachments
-  or direct image URLs in the description. Never links to the Google Calendar
-  event page.
+  description text (URLs become "Event page" links), inline images from Drive
+  attachments or direct image URLs in the description. Never links to the
+  Google Calendar event page. Opened from a day list, it has a ‹ Back button
+  returning to that list.
 - **Locations** are cleaned of the upstream feed's `, US, , City/US` tail.
 
 ## Community event submissions (Google Form)
