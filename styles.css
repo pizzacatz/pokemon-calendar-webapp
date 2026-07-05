@@ -1,0 +1,308 @@
+/* =====================================================================
+ * Pokémon Events Calendar — dark theme
+ * Matched to the existing eventscalendar.co widget palette:
+ *   background #1A1A1A · inner #1F1F1F · text #FFFFFF · borders #FFD180
+ * Overrides FullCalendar's default styling via its CSS variables + selectors.
+ * ===================================================================== */
+
+:root {
+  --bg:          #1a1a1a;   /* page + header background */
+  --inner:       #1f1f1f;   /* panel / cell background */
+  --border:      #ffd180;   /* gold border color */
+  --border-dim:  #8a6f42;   /* dimmer gold for dense grid lines */
+  --text:        #ffffff;
+  --text-muted:  #b5b5b5;
+  --hover:       #2a2a2a;
+
+  font-size: 14px;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: Verdana, Tahoma, Geneva, "DejaVu Sans", sans-serif;
+}
+
+a { color: var(--border); }
+
+/* ---------- Header ---------- */
+.app-header {
+  background: var(--bg);
+  color: var(--text);
+  padding: 12px 16px;
+  border-bottom: 2px solid var(--border);
+}
+.app-header h1 {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: bold;
+}
+.app-header .tagline {
+  margin: 2px 0 0;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+/* ---------- Layout ---------- */
+.app-main {
+  max-width: 1100px;
+  margin: 12px auto;
+  padding: 0 12px;
+}
+
+/* ---------- Filter panel ---------- */
+.filter-panel {
+  background: var(--inner);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+}
+.filter-toggle {
+  display: none;                /* visible only on narrow screens */
+  width: 100%;
+  font: inherit;
+  font-weight: bold;
+  color: var(--text);
+  padding: 8px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  cursor: pointer;
+}
+.filter-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+}
+.filter-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 0.82rem;
+  border: 1px solid transparent;
+  border-radius: 14px;
+}
+.filter-item:hover { border-color: var(--border); background: var(--hover); }
+.filter-item input { accent-color: var(--cat-color); width: 16px; height: 16px; }
+/* Dim a category's label when its box is unchecked. */
+.filter-item:has(input:not(:checked)) .filter-text { color: var(--text-muted); text-decoration: line-through; }
+
+/* ---------- Calendar panel ---------- */
+.calendar {
+  background: var(--inner);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+
+  /* FullCalendar theming via its CSS variables */
+  --fc-border-color: var(--border-dim);
+  --fc-page-bg-color: var(--inner);
+  --fc-neutral-bg-color: var(--bg);
+  --fc-today-bg-color: rgba(255, 209, 128, 0.10);
+  --fc-now-indicator-color: #f8080b;
+  --fc-list-event-hover-bg-color: var(--hover);
+  --fc-event-text-color: #1a1a1a;
+}
+
+/* Outer grid frame gets the full-strength gold, like the widget */
+.fc .fc-scrollgrid { border-color: var(--border); }
+
+/* Toolbar buttons -> dark pills (like the widget's Month/Agenda/Week + chips) */
+.fc .fc-button-primary {
+  background: var(--bg);
+  border: 1px solid var(--text-muted);
+  color: var(--text);
+  font-weight: normal;
+  text-shadow: none;
+  box-shadow: none;
+  border-radius: 16px;
+  padding: 5px 14px;
+}
+.fc .fc-button-primary:hover { border-color: var(--border); background: var(--hover); }
+.fc .fc-button-primary:not(:disabled):active,
+.fc .fc-button-primary:not(:disabled).fc-button-active {
+  background: var(--border);
+  color: #1a1a1a;
+  border-color: var(--border);
+  font-weight: bold;
+}
+.fc .fc-button-primary:focus,
+.fc .fc-button-primary:not(:disabled):active:focus,
+.fc .fc-button-primary:not(:disabled).fc-button-active:focus {
+  box-shadow: 0 0 0 2px var(--inner), 0 0 0 3px var(--border);
+}
+.fc .fc-button-primary:disabled { opacity: 0.4; }
+.fc .fc-button-group > .fc-button { border-radius: 16px; margin-left: 4px; }
+
+.fc .fc-toolbar-title { font-size: 1.15rem; font-weight: bold; color: var(--text); }
+.fc .fc-toolbar.fc-header-toolbar { margin-bottom: 10px; }
+
+/* Column headers + day numbers */
+.fc .fc-col-header-cell-cushion,
+.fc .fc-daygrid-day-number,
+.fc .fc-list-day-cushion .fc-list-day-text,
+.fc .fc-list-day-cushion .fc-list-day-side-text { color: var(--text); text-decoration: none; }
+.fc .fc-col-header-cell { background: var(--bg); }
+.fc .fc-day-other .fc-daygrid-day-number { color: var(--text-muted); }
+.fc .fc-daygrid-more-link { color: var(--text-muted); }
+.fc .fc-daygrid-more-link:hover { color: var(--border); }
+
+/* Month-view dot events (timed events): white text, colored dot */
+.fc .fc-daygrid-dot-event { color: var(--text); }
+.fc .fc-daygrid-dot-event:hover { background: var(--hover); }
+.fc .fc-daygrid-dot-event .fc-event-time { color: var(--text-muted); }
+
+/* Block/all-day event chips — flat, dark text on the bright category color */
+.fc .fc-daygrid-block-event {
+  border: none;
+  border-radius: 3px;
+  box-shadow: none;
+  font-size: 0.76rem;
+  padding: 0 3px;
+}
+.fc .fc-event { cursor: pointer; }
+
+/* List view */
+.fc .fc-list { border-color: var(--border); }
+.fc .fc-list-event:hover td { cursor: pointer; }
+.fc .fc-list-day-cushion { background: var(--bg); }
+.fc .fc-list-event-title, .fc .fc-list-event-time { color: var(--text); }
+
+/* Address line under a list-row title -> Google Maps directions link */
+.event-loc { margin-top: 3px; font-size: 0.78rem; }
+.event-loc a { color: var(--text-muted); text-decoration: underline; }
+.event-loc a:hover { color: var(--border); }
+
+/* ---------- Week view day strip ---------- */
+.day-strip[hidden], .strip-empty[hidden] { display: none; }
+.day-strip {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  border: 1px solid var(--border-dim);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+.strip-day {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 2px 7px;
+  background: var(--inner);
+  border: none;
+  border-left: 1px solid var(--border-dim);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+.strip-day:first-child { border-left: none; }
+.strip-day:hover { background: var(--hover); }
+.strip-day.selected { background: var(--bg); }
+.strip-day.selected::after {
+  content: "";
+  position: absolute; left: 0; right: 0; bottom: 0; height: 3px;
+  background: #fff;
+}
+.strip-dow { font-size: 0.72rem; color: var(--text-muted); }
+.strip-num { font-size: 1.05rem; font-weight: bold; }
+.strip-day.is-today .strip-num {
+  border: 1px solid var(--text);
+  border-radius: 6px;
+  padding: 0 6px;
+}
+.strip-dots { display: flex; gap: 3px; height: 6px; }
+.strip-dots i { display: block; width: 5px; height: 5px; border-radius: 50%; }
+.strip-empty {
+  padding: 14px;
+  color: var(--text-muted);
+  border: 1px solid var(--border-dim);
+  border-radius: 4px;
+  margin-bottom: 10px;
+}
+
+/* Popover ("+n more") */
+.fc .fc-popover { background: var(--inner); border: 1px solid var(--border); }
+.fc .fc-popover-header { background: var(--bg); color: var(--text); }
+
+/* ---------- Event detail popup ---------- */
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.65);
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px;
+  z-index: 1000;
+}
+.modal-overlay[hidden] { display: none; }
+.modal-box {
+  position: relative;
+  background: var(--inner);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  width: 100%; max-width: 440px;
+  padding: 16px 18px 18px;
+}
+.modal-close {
+  position: absolute; top: 10px; right: 10px;
+  width: 26px; height: 26px;
+  font: bold 15px/1 Verdana, sans-serif;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--text-muted);
+  border-radius: 50%;
+  cursor: pointer;
+}
+.modal-close:hover { border-color: var(--border); color: var(--border); }
+.modal-swatch { width: 100%; height: 5px; margin: 4px 0 12px; border-radius: 3px; }
+.modal-title { margin: 0 0 10px; font-size: 1.05rem; color: var(--text); padding-right: 28px; }
+.modal-details { margin: 0; }
+.modal-row { display: flex; gap: 10px; margin: 7px 0; }
+.modal-row dt { flex: none; width: 52px; font-weight: bold; color: var(--text-muted); }
+.modal-row dd { margin: 0; word-break: break-word; }
+.modal-desc { white-space: pre-line; }   /* keep line breaks in descriptions */
+.modal-media { display: flex; flex-direction: column; gap: 8px; }
+.modal-media:not(:empty) { margin-top: 12px; }
+.modal-media img {
+  display: block;
+  max-width: 100%;
+  max-height: 320px;
+  object-fit: contain;
+  border: 1px solid var(--border-dim);
+  border-radius: 4px;
+}
+.modal-media a { font-size: 0.85rem; }
+
+/* ---------- Footer ---------- */
+.app-footer {
+  max-width: 1100px;
+  margin: 8px auto 24px;
+  padding: 0 14px;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+/* ---------- Mobile (PRD §5.3) ---------- */
+@media (max-width: 767px) {
+  .app-header h1 { font-size: 1.15rem; }
+
+  /* Collapse the filter panel behind a toggle button. */
+  .filter-toggle { display: block; }
+  .filter-list { display: none; flex-direction: column; gap: 4px; margin-top: 8px; }
+  .filter-list.open { display: flex; }
+  .filter-item { font-size: 0.9rem; padding: 7px 8px; }  /* bigger tap targets */
+
+  /* Stack the toolbar so prev/next/today/title/views don't overlap. */
+  .fc .fc-toolbar.fc-header-toolbar { flex-direction: column; gap: 8px; align-items: stretch; }
+  .fc .fc-toolbar-chunk { display: flex; justify-content: center; flex-wrap: wrap; gap: 4px; }
+  .fc .fc-button { padding: 8px 12px; }                  /* bigger tap targets */
+  .fc .fc-toolbar-title { text-align: center; }
+}
