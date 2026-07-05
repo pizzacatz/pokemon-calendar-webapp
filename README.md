@@ -125,14 +125,19 @@ displays. Nothing goes live without approval.
 
 | Question title | Type | Required |
 |---|---|---|
+| `Game` | Multiple choice (TCG / VGC / GO / Other) | no (becomes the title prefix) |
 | `Event name` | Short answer | yes |
-| `Event date` | Date | yes |
-| `Start time` | Time | no (blank = all-day event) |
-| `End time` | Time | no (blank = start + 2h) |
-| `Location (venue name and address)` | Short answer | yes |
+| `Event Date` | Date | yes |
+| `Start Time` | Time | no (blank = all-day event) |
+| `End Time` | Time | no (blank = start + 2h) |
+| `Venue name` | Short answer | yes (goes in the title: "… @ VENUE") |
+| `Venue Address` | Short answer | yes |
 | `Description` | Paragraph | no |
-| `Event link (optional)` | Short answer | no |
-| `Image URL (optional)` | Short answer | no (renders in the event popup) |
+| `Event link` | Short answer | no |
+| `Image url` | Short answer | no (renders in the event popup) |
+
+Published titles follow the site convention `GAME Event name @ VENUE`, and
+the location field is `Venue name, Venue Address`.
 
 **Setup:** create the form → link responses to a new spreadsheet → in that
 spreadsheet `Extensions → Apps Script` → paste `community_event_form.gs` →

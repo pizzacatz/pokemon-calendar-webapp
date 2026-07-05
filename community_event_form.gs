@@ -46,16 +46,18 @@ const NOTIFY_EMAIL = 'yidojang@gmail.com';   // submission notifications go here
 const AUTO_APPROVE = false;                  // true = skip moderation (not recommended)
 const DEFAULT_DURATION_HOURS = 2;            // used when no end time is given
 
-// Form question titles -> must match the form EXACTLY (copy/paste them).
+// Form question titles -> must match the form EXACTLY (including case).
 const Q = {
-  name:        'Event name',
-  date:        'Event date',
-  start:       'Start time',
-  end:         'End time',
-  location:    'Location (venue name and address)',
+  game:      'Game',            // e.g. TCG / VGC / GO — used as a title prefix
+  name:      'Event name',
+  date:      'Event Date',
+  start:     'Start Time',
+  end:       'End Time',
+  venue:     'Venue name',
+  address:   'Venue Address',
   description: 'Description',
-  link:        'Event link (optional)',
-  image:       'Image URL (optional)',
+  link:      'Event link',
+  image:     'Image url',
 };
 
 // Extra columns this script manages in the response sheet.
@@ -103,10 +105,10 @@ function handleFormSubmit(e) {
   const summary = [
     'New community event submission:',
     '',
-    'Event:    ' + v[Q.name],
+    'Event:    ' + (v[Q.game] ? v[Q.game] + ' ' : '') + v[Q.name],
     'Date:     ' + v[Q.date],
     'Time:     ' + v[Q.start] + (v[Q.end] ? ' - ' + v[Q.end] : ''),
-    'Location: ' + (v[Q.location] || '(none)'),
+    'Venue:    ' + (v[Q.venue] || '(none)') + (v[Q.address] ? ', ' + v[Q.address] : ''),
     'Link:     ' + (v[Q.link] || '(none)'),
     '',
     AUTO_APPROVE ? 'AUTO_APPROVE is on - it is being published now.'
@@ -163,18 +165,27 @@ function _processRow(sheet, row, cols) {
 
 /** Creates the calendar event from a row's values; returns the event id. */
 function _publish(v) {
-  const title = String(v[Q.name] || '').trim();
-  if (!title) throw new Error('Missing "' + Q.name + '"');
+  const name = String(v[Q.name] || '').trim();
+  if (!name) throw new Error('Missing "' + Q.name + '"');
   if (!(v[Q.date] instanceof Date)) throw new Error('Missing/invalid "' + Q.date + '"');
 
   const cal = CalendarApp.getCalendarById(COMMUNITY_CALENDAR_ID);
   if (!cal) throw new Error('Calendar not found: ' + COMMUNITY_CALENDAR_ID);
 
+  // Title follows the site convention "GAME Event name @ VENUE"
+  // (e.g. "TCG League Night @ SUPER GAMES"). Adjust here if unwanted.
+  const game = String(v[Q.game] || '').trim();
+  const venue = String(v[Q.venue] || '').trim();
+  const title = (game ? game + ' ' : '') + name + (venue ? ' @ ' + venue : '');
+
+  // Location = venue + address, like the synced official events.
+  const location = [venue, String(v[Q.address] || '').trim()].filter(Boolean).join(', ');
+
   // Description: submitter text, then link and image URL on their own lines —
   // the web widget's popup linkifies URLs and renders image URLs inline.
   const description = [v[Q.description], v[Q.link], v[Q.image]]
     .map(s => String(s || '').trim()).filter(Boolean).join('\n\n');
-  const options = { location: String(v[Q.location] || '').trim(), description: description };
+  const options = { location: location, description: description };
 
   let event;
   if (v[Q.start] instanceof Date) {
