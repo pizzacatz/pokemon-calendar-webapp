@@ -114,6 +114,39 @@ routes each height message to its own iframe automatically.
   event page.
 - **Locations** are cleaned of the upstream feed's `, US, , City/US` tail.
 
+## Community event submissions (Google Form)
+
+Visitors submit events through a Google Form; the owner approves them in the
+linked response sheet; an Apps Script (`community_event_form.gs`) publishes
+approved rows to the Community Events calendar, which the widget already
+displays. Nothing goes live without approval.
+
+**Form questions — titles must match `community_event_form.gs`'s `Q` map exactly:**
+
+| Question title | Type | Required |
+|---|---|---|
+| `Event name` | Short answer | yes |
+| `Event date` | Date | yes |
+| `Start time` | Time | no (blank = all-day event) |
+| `End time` | Time | no (blank = start + 2h) |
+| `Location (venue name and address)` | Short answer | yes |
+| `Description` | Paragraph | no |
+| `Event link (optional)` | Short answer | no |
+| `Image URL (optional)` | Short answer | no (renders in the event popup) |
+
+**Setup:** create the form → link responses to a new spreadsheet → in that
+spreadsheet `Extensions → Apps Script` → paste `community_event_form.gs` →
+set the project time zone to `America/New_York` (Project Settings) → run
+`setup()` once and authorize. Recommended form settings: collect email
+addresses (verified) to deter spam.
+
+**Moderation:** each submission emails `NOTIFY_EMAIL` and sits at
+`PENDING`. In the sheet, set Status to `APPROVED` to publish (script fills
+in the Event ID and flips it to `PUBLISHED`), `REJECTED` to decline, or
+`REMOVE` on a published row to delete the event. The sheet's
+"Community events → Process all rows now" menu re-sweeps everything if a
+trigger is ever missed.
+
 ## Development
 
 ```bash
