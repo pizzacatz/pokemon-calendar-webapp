@@ -550,6 +550,12 @@ function renderDescription(container, text) {
  * Boot
  * ------------------------------------------------------------------- */
 
+// Embed mode (?embed=1): hides the page header/footer so the calendar can be
+// iframed as a bare widget (e.g. in a carrd.co Embed element).
+if (new URLSearchParams(window.location.search).has('embed')) {
+  document.documentElement.classList.add('embed');
+}
+
 document.addEventListener('DOMContentLoaded', function () {
   if (GOOGLE_CALENDAR_API_KEY.indexOf('REPLACE_ME') === 0) {
     console.warn('[Pokémon Calendar] Set GOOGLE_CALENDAR_API_KEY in app.js — events will not load until you do.');
