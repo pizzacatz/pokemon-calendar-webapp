@@ -169,3 +169,32 @@ The app is done when ALL of the following are true:
   - the window-resize hook and view-change method for the mobile view swap.
 - If anything in this PRD is ambiguous or appears to conflict, stop and flag it before
   implementing rather than guessing.
+
+---
+
+## 13. Addendum — as built (July 2026)
+
+Shipped at https://pizzacatz.github.io/pokemon-calendar-webapp/ (repo
+`pizzacatz/pokemon-calendar-webapp`). Everyday documentation lives in
+`README.md`; this addendum only records where reality diverged from the spec.
+
+**Resolved decisions (§11):** all 6 calendar IDs wired; event click = in-page
+popup; time zone = fixed US Eastern (not viewer-local); past events navigable;
+mobile month redesigned (see below).
+
+**Scope changes vs. the original spec:**
+- §1 "NOT embedded" was reversed: the app is embedded in carrd.co pages as an
+  auto-resizing iframe (`?embed=1`), replacing the old eventscalendar.co
+  widgets. A standalone page still works at the same URL.
+- §6 the 2000s-utility look was replaced by a dark theme matching the prior
+  widget (background `#1A1A1A`, panels `#1F1F1F`, gold `#FFD180` borders).
+- §5.1 Day view was dropped; "Week" is a custom day-strip + one-day list view;
+  "List" is a rolling 30-day agenda anchored on today.
+- §5.3 mobile no longer swaps to list view: month renders dot-per-event cells
+  and tapping a day opens a day-list modal.
+- §5.2 filter checkboxes became always-visible colored toggle chips with
+  shortened labels (VGC, GO, Prereleases, Community).
+- Added beyond spec: event graphics (Drive attachments + description image
+  URLs) in the popup, Google Maps directions links for locations, location
+  junk-tail cleanup, per-embed URL params (`view=`, `cats=`) so each carrd
+  page defaults to its own view and category set.

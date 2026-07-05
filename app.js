@@ -4,6 +4,9 @@
  * FullCalendar v6 Google Calendar plugin and renders them with custom
  * category filtering, a widget-style week view (day strip + one-day list),
  * a rolling upcoming list, and an in-page detail popup.
+ *
+ * Embeddable: ?embed=1 strips the page chrome for iframes, and each embed
+ * can pick its own defaults via ?view= and ?cats= — see README.md.
  * ===================================================================== */
 
 /* ---------------------------------------------------------------------
@@ -82,6 +85,50 @@ const NARROW_MAX = 767; // px
 function isNarrow() { return window.innerWidth <= NARROW_MAX; }
 
 /* ---------------------------------------------------------------------
+ * Per-embed configuration via URL parameters
+ *   ?embed=1          bare-widget mode (no page header/footer) for iframes
+ *   &view=month|week|list|agenda   initial view (default: month)
+ *   &cats=vgc,go      categories enabled at load (default: all); the other
+ *                     chips stay available, just start toggled off
+ * Lets each embedding page (TCG / VG+GO / prerelease) show its own slice.
+ * ------------------------------------------------------------------- */
+
+const PAGE_PARAMS = new URLSearchParams(window.location.search);
+
+if (PAGE_PARAMS.has('embed')) {
+  document.documentElement.classList.add('embed');
+}
+
+const VIEW_PARAM_MAP = {
+  month: 'dayGridMonth',
+  week: 'weekStrip',
+  list: 'listRolling',
+  agenda: 'listRolling',
+};
+
+function initialViewFromParams() {
+  return VIEW_PARAM_MAP[(PAGE_PARAMS.get('view') || '').toLowerCase()] || 'dayGridMonth';
+}
+
+// Friendly spellings accepted in ?cats= alongside the canonical ids.
+const CAT_ALIASES = {
+  cups: 'tcg-cups',
+  challenges: 'tcg-challenges',
+  prerelease: 'tcg-prerelease',
+  prereleases: 'tcg-prerelease',
+};
+
+function initiallyEnabled(cal) {
+  const raw = PAGE_PARAMS.get('cats');
+  if (!raw) return true;                       // no param -> everything on
+  const ids = raw.split(',').map(function (s) {
+    s = s.trim().toLowerCase();
+    return CAT_ALIASES[s] || s;
+  });
+  return ids.indexOf(cal.id) !== -1;
+}
+
+/* ---------------------------------------------------------------------
  * Calendar
  * ------------------------------------------------------------------- */
 
@@ -94,7 +141,7 @@ function initCalendar() {
     timeZone: DISPLAY_TIME_ZONE,
     googleCalendarApiKey: GOOGLE_CALENDAR_API_KEY,
 
-    initialView: 'dayGridMonth',       // month everywhere; mobile gets dot cells. PRD §5.1 / §5.3
+    initialView: initialViewFromParams(),   // per-embed default (?view=), month otherwise
     height: 'auto',
     firstDay: 0,
     navLinks: false,
@@ -116,8 +163,9 @@ function initCalendar() {
     },
     buttonText: { today: 'Today', month: 'Month' },
 
-    // All six sources start visible (PRD §5.2). Toggled via the filter panel.
-    eventSources: CALENDARS.map(sourceConfig),
+    // Sources enabled at load (?cats= narrows the default of "all six").
+    // Toggled via the filter panel either way. PRD §5.2.
+    eventSources: CALENDARS.filter(initiallyEnabled).map(sourceConfig),
 
     // Guard against title-less events (e.g. a calendar shared as free/busy-only)
     // rendering as the literal string "undefined". Drop the Google Calendar URL
@@ -535,7 +583,7 @@ function buildFilterPanel() {
 
     const cb = document.createElement('input');
     cb.type = 'checkbox';
-    cb.checked = true;                 // all visible by default
+    cb.checked = initiallyEnabled(cal);   // all on unless ?cats= narrows it
     cb.dataset.calId = cal.id;
     cb.addEventListener('change', function () { onFilterChange(cal, cb.checked); });
 
@@ -753,12 +801,6 @@ function renderDescription(container, text) {
 /* ---------------------------------------------------------------------
  * Boot
  * ------------------------------------------------------------------- */
-
-// Embed mode (?embed=1): hides the page header/footer so the calendar can be
-// iframed as a bare widget (e.g. in a carrd.co Embed element).
-if (new URLSearchParams(window.location.search).has('embed')) {
-  document.documentElement.classList.add('embed');
-}
 
 document.addEventListener('DOMContentLoaded', function () {
   if (GOOGLE_CALENDAR_API_KEY.indexOf('REPLACE_ME') === 0) {
