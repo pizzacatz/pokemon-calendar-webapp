@@ -84,7 +84,7 @@ pre-load fallback.
 |---|---|---|
 | `embed=1` | — | bare widget: hides the app's own header/footer |
 | `view=` | `month`, `week`, `list` (alias `agenda`) | initial view; default `month` |
-| `cats=` | comma list of `tcg-cups`, `tcg-challenges`, `vgc`, `go`, `prerelease`(`s`), `community` | categories enabled at load; all others start toggled off (chips remain tappable) |
+| `cats=` | comma list of `tcg-cups`, `tcg-challenges`, `vgc`, `go`, `prerelease`(`s`), `community` | pre-activates those filter chips at load (visitors can still change them) |
 
 Examples for dedicated pages:
 
@@ -103,8 +103,11 @@ routes each height message to its own iframe automatically.
 - **Views:** Month, custom "Week" (7-day strip with per-category activity
   dots + one-day list, like the old eventscalendar.co widget), and a rolling
   30-day List anchored on today.
-- **Filtering:** always-visible toggle chips, one per category, colored;
-  works in every view (toggles the FullCalendar event source).
+- **Filtering:** chips are *filters*, not visibility toggles — nothing
+  selected (the "All" chip lit) shows everything; tapping a category shows
+  only the selected categories (additive); "All" resets. Works in every view
+  (adds/removes FullCalendar event sources). Empty filter results show a
+  "tap All to reset" note.
 - **Mobile (≤767px):** month cells show dots instead of chips; tapping a day
   opens a list modal (title, time below); list rows stack title / time /
   address; toolbar stacks.

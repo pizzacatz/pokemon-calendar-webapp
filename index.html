@@ -22,9 +22,12 @@
     <!-- Custom filter panel (no built-in FullCalendar widget exists; this is custom code). -->
     <section class="filter-panel" aria-label="Filter event categories">
       <div id="filter-list" class="filter-list">
-        <!-- One toggle chip per category, injected by app.js. -->
+        <!-- "All" + one filter chip per category, injected by app.js. -->
       </div>
+      <p id="filter-empty" class="filter-empty" hidden>No events match your filters — tap <strong>All</strong> to reset.</p>
     </section>
+
+    <p id="loading-note" class="loading-note" hidden>Loading events…</p>
 
     <div id="calendar" class="calendar"></div>
   </main>
@@ -32,6 +35,7 @@
   <!-- In-page event detail popup (custom; shown on event click). -->
   <div id="event-modal" class="modal-overlay" hidden>
     <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <button type="button" class="modal-back" id="modal-back" hidden>‹ Back</button>
       <button type="button" class="modal-close" id="modal-close" aria-label="Close">×</button>
       <div class="modal-swatch" id="modal-swatch"></div>
       <h2 id="modal-title" class="modal-title"></h2>
@@ -43,10 +47,11 @@
           <dt>Where</dt><dd id="modal-where"></dd>
         </div>
         <div class="modal-row" id="modal-link-row" hidden>
-          <dt>Info</dt><dd id="modal-link" class="modal-desc"></dd>
+          <dt>Details</dt><dd id="modal-link" class="modal-desc"></dd>
         </div>
       </dl>
       <div id="modal-media" class="modal-media"></div>
+      <button type="button" class="modal-close-bottom" id="modal-close-bottom">Close</button>
     </div>
   </div>
 
@@ -56,6 +61,7 @@
       <button type="button" class="modal-close" id="day-modal-close" aria-label="Close">×</button>
       <h2 id="day-modal-title" class="modal-title"></h2>
       <div id="day-modal-list" class="day-list"></div>
+      <button type="button" class="modal-close-bottom" id="day-modal-close-bottom">Close</button>
     </div>
   </div>
 

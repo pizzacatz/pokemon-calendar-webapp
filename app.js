@@ -118,14 +118,26 @@ const CAT_ALIASES = {
   prereleases: 'tcg-prerelease',
 };
 
-function initiallyEnabled(cal) {
+/* ---------------------------------------------------------------------
+ * Filter state — chips are FILTERS, not visibility toggles.
+ * Empty set = no filter active = show everything (the default).
+ * Tapping a category adds it to the filter (shows only selected ones);
+ * the "All" chip clears the filter. ?cats= pre-fills the set per embed.
+ * ------------------------------------------------------------------- */
+
+const activeCats = new Set();
+(function initCatsFromParams() {
   const raw = PAGE_PARAMS.get('cats');
-  if (!raw) return true;                       // no param -> everything on
-  const ids = raw.split(',').map(function (s) {
+  if (!raw) return;
+  raw.split(',').forEach(function (s) {
     s = s.trim().toLowerCase();
-    return CAT_ALIASES[s] || s;
+    s = CAT_ALIASES[s] || s;
+    if (CALENDARS.some(function (c) { return c.id === s; })) activeCats.add(s);
   });
-  return ids.indexOf(cal.id) !== -1;
+})();
+
+function catVisible(cal) {
+  return activeCats.size === 0 || activeCats.has(cal.id);
 }
 
 /* ---------------------------------------------------------------------
@@ -146,6 +158,14 @@ function initCalendar() {
     firstDay: 0,
     navLinks: false,
     dayMaxEventRows: 4,                 // overflow into a "+n more" popover in month view
+    eventDisplay: 'list-item',          // all-day events render dot-style like timed ones
+
+    // Loading indicator while event sources fetch.
+    loading: function (isLoading) {
+      const note = document.getElementById('loading-note');
+      if (note) note.hidden = !isLoading;
+      if (!isLoading) scheduleDecorUpdate(false);
+    },
 
     views: {
       // Widget-style week: FullCalendar renders the whole week as a list;
@@ -163,9 +183,9 @@ function initCalendar() {
     },
     buttonText: { today: 'Today', month: 'Month' },
 
-    // Sources enabled at load (?cats= narrows the default of "all six").
-    // Toggled via the filter panel either way. PRD §5.2.
-    eventSources: CALENDARS.filter(initiallyEnabled).map(sourceConfig),
+    // Sources visible at load per the filter state (?cats= pre-fills it).
+    // Toggled via the filter chips either way. PRD §5.2.
+    eventSources: CALENDARS.filter(catVisible).map(sourceConfig),
 
     // Guard against title-less events (e.g. a calendar shared as free/busy-only)
     // rendering as the literal string "undefined". Drop the Google Calendar URL
@@ -232,7 +252,9 @@ function initCalendar() {
     if (!isNarrow() || calendar.view.type !== 'dayGridMonth') return;
     if (e.target.closest('.fc-event')) return;   // handled by eventClick above
     const cell = e.target.closest('.fc-daygrid-day[data-date]');
-    if (cell) openDayModal(cell.getAttribute('data-date'));
+    if (!cell) return;
+    const ds = cell.getAttribute('data-date');
+    if (eventsOnDate(ds).length) openDayModal(ds);   // empty days: no dead-end modal
   });
 
   // Auto-height for the embedding iframe (carrd) — see postHeight().
@@ -280,7 +302,9 @@ function anchorModal(overlay) {
   overlay.classList.add('anchored');
   const bh = box.offsetHeight;
   const maxTop = Math.max(12, document.body.scrollHeight - bh - 12);
-  box.style.marginTop = Math.min(Math.max(12, lastClickY - bh / 2), maxTop) + 'px';
+  // Bias the box to open just below the tap (header near the finger, content
+  // flowing downward) rather than centered on it.
+  box.style.marginTop = Math.min(Math.max(12, lastClickY - 60), maxTop) + 'px';
 }
 
 /* ---------------------------------------------------------------------
@@ -329,6 +353,11 @@ function scheduleDecorUpdate(navigated) {
   setTimeout(function () {
     updateStrip(navigated);
     updateMonthDots();
+    syncEmptyNote();
+    // Keep an open day-list modal in sync with filter/data changes.
+    if (dayModal.overlay && !dayModal.overlay.hidden && dayModal.currentDate) {
+      renderDayList(dayModal.currentDate);
+    }
     postHeight();
   }, 0);
 }
@@ -424,11 +453,19 @@ function updateMonthDots() {
       frame.appendChild(holder);
     }
     holder.textContent = '';
-    (dots[ds] || []).slice(0, MAX_CELL_DOTS).forEach(function (color) {
+    const colors = dots[ds] || [];
+    colors.slice(0, MAX_CELL_DOTS).forEach(function (color) {
       const i = document.createElement('i');
       i.style.background = color;
       holder.appendChild(i);
     });
+    // Busy days: show how many events the dots are hiding.
+    if (colors.length > MAX_CELL_DOTS) {
+      const more = document.createElement('b');
+      more.className = 'dots-more';
+      more.textContent = '+' + (colors.length - MAX_CELL_DOTS);
+      holder.appendChild(more);
+    }
   });
 }
 
@@ -446,7 +483,7 @@ function eventsOnDate(dateStr) {
     });
 }
 
-const dayModal = { overlay: null, title: null, list: null };
+const dayModal = { overlay: null, title: null, list: null, currentDate: null };
 
 function initDayModal() {
   dayModal.overlay = document.getElementById('day-modal');
@@ -454,6 +491,7 @@ function initDayModal() {
   dayModal.list    = document.getElementById('day-modal-list');
 
   document.getElementById('day-modal-close').addEventListener('click', closeDayModal);
+  document.getElementById('day-modal-close-bottom').addEventListener('click', closeDayModal);
   dayModal.overlay.addEventListener('click', function (e) {
     if (e.target === dayModal.overlay) closeDayModal();
   });
@@ -462,7 +500,9 @@ function initDayModal() {
   });
 }
 
-function openDayModal(dateStr) {
+// (Re)build the day modal's event list. Separate from openDayModal so an
+// open modal can refresh in place when filters or data change.
+function renderDayList(dateStr) {
   const date = new Date(dateStr + 'T00:00:00Z');
   dayModal.title.textContent = date.toLocaleDateString(undefined,
     { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
@@ -495,11 +535,15 @@ function openDayModal(dateStr) {
     item.appendChild(time);
     item.addEventListener('click', function () {
       closeDayModal();
-      openEventModal(ev);       // tap through to the full details popup
+      openEventModal(ev, dateStr);   // details popup, with a way back here
     });
     dayModal.list.appendChild(item);
   });
+}
 
+function openDayModal(dateStr) {
+  dayModal.currentDate = dateStr;
+  renderDayList(dateStr);
   dayModal.overlay.hidden = false;
   anchorModal(dayModal.overlay);
   postHeight();
@@ -507,6 +551,7 @@ function openDayModal(dateStr) {
 
 function closeDayModal() {
   dayModal.overlay.hidden = true;
+  dayModal.currentDate = null;
   postHeight();
 }
 
@@ -569,41 +614,73 @@ function applyDayFilter() {
 }
 
 /* ---------------------------------------------------------------------
- * Filter panel (custom — FullCalendar has no built-in filter widget). PRD §5.2
- * Toggling = remove / re-add the event source, so it works in every view.
+ * Filter chips (custom — FullCalendar has no built-in filter widget). PRD §5.2
+ * Model: chips are active FILTERS. Nothing selected = show everything, with
+ * the "All" chip lit as the resting state. Tapping a category shows only the
+ * selected categories (additive); "All" (or unselecting the last category)
+ * resets. Sources are added/removed so it works in every view.
  * ------------------------------------------------------------------- */
+
+const chipEls = {};   // cal.id -> button element ('*' = the All chip)
 
 function buildFilterPanel() {
   const list = document.getElementById('filter-list');
 
+  const all = document.createElement('button');
+  all.type = 'button';
+  all.className = 'filter-item filter-all';
+  all.textContent = 'All';
+  all.addEventListener('click', function () {
+    activeCats.clear();
+    syncFilters();
+  });
+  chipEls['*'] = all;
+  list.appendChild(all);
+
   CALENDARS.forEach(function (cal) {
-    const label = document.createElement('label');
-    label.className = 'filter-item';
-    label.style.setProperty('--cat-color', cal.color);
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = 'filter-item';
+    chip.style.setProperty('--cat-color', cal.color);
+    chip.textContent = cal.label;
+    chip.addEventListener('click', function () {
+      if (activeCats.has(cal.id)) activeCats.delete(cal.id);
+      else activeCats.add(cal.id);
+      syncFilters();
+    });
+    chipEls[cal.id] = chip;
+    list.appendChild(chip);
+  });
 
-    const cb = document.createElement('input');
-    cb.type = 'checkbox';
-    cb.checked = initiallyEnabled(cal);   // all on unless ?cats= narrows it
-    cb.dataset.calId = cal.id;
-    cb.addEventListener('change', function () { onFilterChange(cal, cb.checked); });
+  syncFilters();
+}
 
-    const text = document.createElement('span');
-    text.className = 'filter-text';
-    text.textContent = cal.label;
+// Reflect the filter state onto the chips and the calendar's event sources.
+function syncFilters() {
+  const none = activeCats.size === 0;
+  chipEls['*'].classList.toggle('on', none);
+  chipEls['*'].setAttribute('aria-pressed', String(none));
 
-    label.appendChild(cb);
-    label.appendChild(text);
-    list.appendChild(label);
+  CALENDARS.forEach(function (cal) {
+    const on = activeCats.has(cal.id);
+    chipEls[cal.id].classList.toggle('on', on);
+    chipEls[cal.id].setAttribute('aria-pressed', String(on));
+
+    if (!calendar) return;
+    const existing = calendar.getEventSourceById(cal.id);
+    if (catVisible(cal) && !existing) calendar.addEventSource(sourceConfig(cal));
+    if (!catVisible(cal) && existing) existing.remove();
   });
 }
 
-function onFilterChange(cal, checked) {
-  const existing = calendar.getEventSourceById(cal.id);
-  if (checked) {
-    if (!existing) calendar.addEventSource(sourceConfig(cal));
-  } else {
-    if (existing) existing.remove();
-  }
+// "No events match" note: only when a filter is active and yielded nothing.
+function syncEmptyNote() {
+  const note = document.getElementById('filter-empty');
+  const loading = document.getElementById('loading-note');
+  if (!note || !calendar) return;
+  note.hidden = !(activeCats.size > 0 &&
+    calendar.getEvents().length === 0 &&
+    (!loading || loading.hidden));
 }
 
 /* ---------------------------------------------------------------------
@@ -615,7 +692,8 @@ const modal = {
   whenRow: null, when: null,
   whereRow: null, where: null,
   linkRow: null, link: null,
-  media: null,
+  media: null, back: null,
+  fromDay: null,      // date the day-list modal was showing, for back-navigation
 };
 
 function initModal() {
@@ -629,8 +707,16 @@ function initModal() {
   modal.linkRow  = document.getElementById('modal-link-row');
   modal.link     = document.getElementById('modal-link');
   modal.media    = document.getElementById('modal-media');
+  modal.back     = document.getElementById('modal-back');
 
   document.getElementById('modal-close').addEventListener('click', closeEventModal);
+  document.getElementById('modal-close-bottom').addEventListener('click', closeEventModal);
+  // Opened from a day list? Go back to it instead of dumping to the calendar.
+  modal.back.addEventListener('click', function () {
+    const day = modal.fromDay;
+    closeEventModal();
+    if (day) openDayModal(day);
+  });
   modal.overlay.addEventListener('click', function (e) {
     if (e.target === modal.overlay) closeEventModal();   // click backdrop to dismiss
   });
@@ -672,7 +758,10 @@ function formatTimeRange(event) {
   return s;
 }
 
-function openEventModal(event) {
+function openEventModal(event, fromDay) {
+  modal.fromDay = fromDay || null;
+  modal.back.hidden = !modal.fromDay;
+
   modal.title.textContent = event.title || '(untitled event)';
   modal.swatch.style.background = categoryColor(event);
   modal.when.textContent = formatWhen(event);
@@ -765,6 +854,7 @@ function renderAttachments(container, attachments) {
 
 function closeEventModal() {
   modal.overlay.hidden = true;
+  modal.fromDay = null;
   postHeight();
 }
 
@@ -789,7 +879,7 @@ function renderDescription(container, text) {
       a.target = '_blank';
       a.rel = 'noopener noreferrer';
       // Long raw URLs are noise; show a friendly label instead.
-      a.textContent = 'Event details ↗';
+      a.textContent = 'Event page ↗';
       a.title = part;
       container.appendChild(a);
     } else if (part) {

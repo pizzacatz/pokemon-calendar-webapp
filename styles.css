@@ -62,37 +62,50 @@ a { color: var(--border); }
   padding: 8px 10px;
   margin-bottom: 12px;
 }
-/* Tightly packed toggle chips — filled when on, hollow/dim when off. */
+/* Tightly packed filter chips. Hollow = not filtering; filled (+ ✓) = an
+   active filter. "All" is lit whenever no category filter is active. */
 .filter-list {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
 }
 .filter-item {
-  position: relative;
   display: inline-flex;
   align-items: center;
   padding: 4px 12px;
   cursor: pointer;
   user-select: none;
+  font: inherit;
   font-size: 0.8rem;
+  background: transparent;
   border: 1px solid var(--cat-color);
   border-radius: 14px;
   color: var(--text);
-  transition: background 0.1s;
+  opacity: 0.75;
+  transition: background 0.1s, opacity 0.1s, transform 0.05s;
 }
-.filter-item input {          /* real checkbox stays for a11y, visually hidden */
-  position: absolute;
-  opacity: 0;
-  pointer-events: none;
-}
-.filter-item:has(input:checked) {
+.filter-all { --cat-color: var(--border); }   /* gold "All" chip */
+.filter-item:hover { opacity: 1; }
+.filter-item:active { transform: scale(0.94); }
+.filter-item.on {
   background: var(--cat-color);
   color: #1a1a1a;
   font-weight: bold;
+  opacity: 1;
 }
-.filter-item:has(input:not(:checked)) { opacity: 0.55; }
-.filter-item:hover { opacity: 1; }
+.filter-item.on::before { content: "✓ "; }
+.filter-empty {
+  margin: 8px 2px 0;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+.filter-empty strong { color: var(--border); }
+
+.loading-note {
+  margin: 0 0 8px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
 
 /* ---------- Calendar panel ---------- */
 .calendar {
@@ -208,8 +221,8 @@ a { color: var(--border); }
   cursor: pointer;
 }
 .strip-day:first-child { border-left: none; }
-.strip-day:hover { background: var(--hover); }
-.strip-day.selected { background: var(--bg); }
+.strip-day:hover, .strip-day:active { background: var(--hover); }
+.strip-day.selected { background: rgba(255, 209, 128, 0.14); }
 .strip-day.selected::after {
   content: "";
   position: absolute; left: 0; right: 0; bottom: 0; height: 3px;
@@ -245,6 +258,10 @@ a { color: var(--border); }
   z-index: 1000;
 }
 .modal-overlay[hidden] { display: none; }
+@keyframes modal-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to   { opacity: 1; transform: none; }
+}
 .modal-box {
   position: relative;
   background: var(--inner);
@@ -254,6 +271,7 @@ a { color: var(--border); }
   padding: 16px 18px 18px;
   max-height: calc(100vh - 24px);   /* standalone fallback: never taller than the screen */
   overflow-y: auto;
+  animation: modal-in 0.16s ease-out;
 }
 /* Embedded (iframe) mode: anchor the box near the tap instead of centering
    in the whole — possibly very tall — embed. app.js sets margin-top. The
@@ -271,6 +289,36 @@ a { color: var(--border); }
   cursor: pointer;
 }
 .modal-close:hover { border-color: var(--border); color: var(--border); }
+.modal-back {
+  display: inline-block;
+  margin-bottom: 6px;
+  padding: 4px 12px;
+  font: inherit;
+  font-size: 0.8rem;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--text-muted);
+  border-radius: 14px;
+  cursor: pointer;
+}
+.modal-back:hover { border-color: var(--border); color: var(--border); }
+.modal-back[hidden] { display: none; }
+.modal-close-bottom {
+  display: none;                 /* shown on phones (see mobile block) */
+  width: 100%;
+  margin-top: 14px;
+  padding: 10px;
+  font: inherit;
+  font-weight: bold;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--text-muted);
+  border-radius: 8px;
+  cursor: pointer;
+}
+.modal-close-bottom:active { background: var(--hover); }
+/* Explicit outbound cue on the directions link in the popup */
+#modal-where a::after { content: " ↗"; }
 .modal-swatch { width: 100%; height: 5px; margin: 4px 0 12px; border-radius: 3px; }
 .modal-title { margin: 0 0 10px; font-size: 1.05rem; color: var(--text); padding-right: 28px; }
 .modal-details { margin: 0; }
@@ -293,6 +341,7 @@ a { color: var(--border); }
 /* Day event-list modal (mobile month view) */
 .day-list { display: flex; flex-direction: column; }
 .day-item {
+  position: relative;
   display: block;
   width: 100%;
   text-align: left;
@@ -301,11 +350,20 @@ a { color: var(--border); }
   background: none;
   border: none;
   border-bottom: 1px solid var(--border-dim);
-  padding: 10px 2px;
+  padding: 10px 22px 10px 2px;
   cursor: pointer;
 }
 .day-item:last-child { border-bottom: none; }
-.day-item:hover { background: var(--hover); }
+.day-item:hover, .day-item:active { background: var(--hover); }
+/* tappable-row affordance */
+.day-item::after {
+  content: "›";
+  position: absolute;
+  right: 6px; top: 50%;
+  transform: translateY(-50%);
+  font-size: 1.1rem;
+  color: var(--text-muted);
+}
 .day-item-title { display: block; font-weight: bold; line-height: 1.35; }
 .day-item-title i {
   display: inline-block;
@@ -355,10 +413,17 @@ a { color: var(--border); }
   .day-dots {
     display: flex;
     justify-content: center;
+    align-items: center;
     gap: 3px;
     padding: 3px 0 5px;
   }
   .day-dots i { display: block; width: 6px; height: 6px; border-radius: 50%; }
+  .day-dots .dots-more { font-size: 0.62rem; color: var(--text-muted); font-weight: normal; }
+  .fc .fc-daygrid-day:active { background: var(--hover); }
+  .fc .fc-list-event:active td { background: var(--hover); }
+
+  /* Big, thumb-friendly close button at the bottom of modals. */
+  .modal-close-bottom { display: block; }
 
   /* List rows (Week/List views): hide the time column; an inline copy sits
      between the title and the address, matching the address formatting. */
