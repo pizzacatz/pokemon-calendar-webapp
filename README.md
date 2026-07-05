@@ -162,12 +162,11 @@ python3 -m http.server 8000    # serve from the repo root
 # http://localhost:8000        (localhost:8000 must be in the API key's referrer list)
 ```
 
-Deploy = `git push` (Pages serves `main` at root). Builds occasionally sit in
-"queued/building" for 10+ minutes; kick one with:
-
-```bash
-gh api -X POST repos/pizzacatz/pokemon-calendar-webapp/pages/builds
-```
+Deploy = `git push` — the "Deploy to GitHub Pages" Actions workflow
+(`.github/workflows/pages.yml`) publishes the repo as-is, typically in under
+a minute. Check on a deploy with `gh run list`. (The legacy Jekyll Pages
+build was abandoned in July 2026 after repeated 20-minute stalls and opaque
+"Page build failed" errors.)
 
 ## Gotchas (hard-won)
 
