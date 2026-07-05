@@ -59,41 +59,40 @@ a { color: var(--border); }
   background: var(--inner);
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 8px 12px;
+  padding: 8px 10px;
   margin-bottom: 12px;
 }
-.filter-toggle {
-  display: none;                /* visible only on narrow screens */
-  width: 100%;
-  font: inherit;
-  font-weight: bold;
-  color: var(--text);
-  padding: 8px;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  cursor: pointer;
-}
+/* Tightly packed toggle chips — filled when on, hollow/dim when off. */
 .filter-list {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px 14px;
+  gap: 6px;
 }
 .filter-item {
+  position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 3px 8px;
+  padding: 4px 12px;
   cursor: pointer;
   user-select: none;
-  font-size: 0.82rem;
-  border: 1px solid transparent;
+  font-size: 0.8rem;
+  border: 1px solid var(--cat-color);
   border-radius: 14px;
+  color: var(--text);
+  transition: background 0.1s;
 }
-.filter-item:hover { border-color: var(--border); background: var(--hover); }
-.filter-item input { accent-color: var(--cat-color); width: 16px; height: 16px; }
-/* Dim a category's label when its box is unchecked. */
-.filter-item:has(input:not(:checked)) .filter-text { color: var(--text-muted); text-decoration: line-through; }
+.filter-item input {          /* real checkbox stays for a11y, visually hidden */
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.filter-item:has(input:checked) {
+  background: var(--cat-color);
+  color: #1a1a1a;
+  font-weight: bold;
+}
+.filter-item:has(input:not(:checked)) { opacity: 0.55; }
+.filter-item:hover { opacity: 1; }
 
 /* ---------- Calendar panel ---------- */
 .calendar {
@@ -337,11 +336,8 @@ a { color: var(--border); }
 @media (max-width: 767px) {
   .app-header h1 { font-size: 1.15rem; }
 
-  /* Collapse the filter panel behind a toggle button. */
-  .filter-toggle { display: block; }
-  .filter-list { display: none; flex-direction: column; gap: 4px; margin-top: 8px; }
-  .filter-list.open { display: flex; }
-  .filter-item { font-size: 0.9rem; padding: 7px 8px; }  /* bigger tap targets */
+  /* Chips stay visible — just slightly bigger tap targets. */
+  .filter-item { padding: 6px 12px; }
 
   /* Stack the toolbar so prev/next/today/title/views don't overlap. */
   .fc .fc-toolbar.fc-header-toolbar { flex-direction: column; gap: 8px; align-items: stretch; }

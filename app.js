@@ -21,13 +21,13 @@ const DISPLAY_TIME_ZONE = 'America/New_York';
 // One entry per category. To add/remove a category, edit ONLY this list (PRD §4).
 // Colors are bright variants so they stay legible on the dark background (PRD §6).
 const CALENDARS = [
-  { id: 'tcg-cups',       label: 'TCG Cups',              color: '#64b5f6', googleCalendarId: '86e309612473b346e0bdec61b2638bf9915dbb5961f924d2d40e69032b56c344@group.calendar.google.com' },
-  { id: 'tcg-challenges', label: 'TCG Challenges',        color: '#4dd0e1', googleCalendarId: '1e75db32a0ea41bc4e7e4aa16b3555f5a67cf80ae652c9e6ffc7e18c84302a67@group.calendar.google.com' },
-  { id: 'vgc',            label: 'VGC Cups & Challenges', color: '#ef5350', googleCalendarId: '96c9ca92cfdbee45cc3e0cb314ba47c11ef88705bab2f12dca14cefcf24a1706@group.calendar.google.com' },
-  { id: 'go',             label: 'GO Cups & Challenges',  color: '#66bb6a', googleCalendarId: '6266d34b4ebc12683acd051f9caac81e9cbdf123505bc6f733a7fe60451804a9@group.calendar.google.com' },
-  { id: 'tcg-prerelease', label: 'TCG Prereleases',       color: '#b39ddb', googleCalendarId: '24b6777e29ee1fb3e942d1eea996fc257b099474cfff9ac297a571d73b9c2586@group.calendar.google.com' },
+  { id: 'tcg-cups',       label: 'TCG Cups',       color: '#64b5f6', googleCalendarId: '86e309612473b346e0bdec61b2638bf9915dbb5961f924d2d40e69032b56c344@group.calendar.google.com' },
+  { id: 'tcg-challenges', label: 'TCG Challenges', color: '#4dd0e1', googleCalendarId: '1e75db32a0ea41bc4e7e4aa16b3555f5a67cf80ae652c9e6ffc7e18c84302a67@group.calendar.google.com' },
+  { id: 'vgc',            label: 'VGC',            color: '#ef5350', googleCalendarId: '96c9ca92cfdbee45cc3e0cb314ba47c11ef88705bab2f12dca14cefcf24a1706@group.calendar.google.com' },
+  { id: 'go',             label: 'GO',             color: '#66bb6a', googleCalendarId: '6266d34b4ebc12683acd051f9caac81e9cbdf123505bc6f733a7fe60451804a9@group.calendar.google.com' },
+  { id: 'tcg-prerelease', label: 'Prereleases',    color: '#b39ddb', googleCalendarId: '24b6777e29ee1fb3e942d1eea996fc257b099474cfff9ac297a571d73b9c2586@group.calendar.google.com' },
   // 6th calendar — community / unofficial events (maintained manually). PRD §2, §8.
-  { id: 'community',      label: 'Community Events',      color: '#ffa726', googleCalendarId: 'df8623bf7aaa7fcaa7cf4e03909f78409895db4819355a5d7b4c396da852aaba@group.calendar.google.com' },
+  { id: 'community',      label: 'Community',      color: '#ffa726', googleCalendarId: 'df8623bf7aaa7fcaa7cf4e03909f78409895db4819355a5d7b4c396da852aaba@group.calendar.google.com' },
 ];
 
 /* ---------------------------------------------------------------------
@@ -199,7 +199,10 @@ function initCalendar() {
 // grow the iframe when a long day list wouldn't fit.
 function postHeight() {
   if (window.parent === window) return;
-  let h = document.body.scrollHeight;
+  // +16px buffer: the last element's bottom margin escapes body.scrollHeight
+  // (margin collapsing) and fractional heights round down — without it the
+  // bottom border of the calendar panel gets clipped.
+  let h = document.body.scrollHeight + 16;
   document.querySelectorAll('.modal-overlay:not([hidden]) .modal-box').forEach(function (box) {
     h = Math.max(h, box.getBoundingClientRect().bottom + 24);
   });
@@ -543,13 +546,6 @@ function buildFilterPanel() {
     label.appendChild(cb);
     label.appendChild(text);
     list.appendChild(label);
-  });
-
-  // Mobile: collapse the panel behind a toggle button.
-  const toggle = document.getElementById('filter-toggle');
-  toggle.addEventListener('click', function () {
-    const open = list.classList.toggle('open');
-    toggle.setAttribute('aria-expanded', String(open));
   });
 }
 
