@@ -136,31 +136,37 @@ function initCalendar() {
     },
 
     // In-page detail popup instead of navigating to Google (PRD §5.4 / §11.4).
+    // On mobile month view, any tap on a day — dots, chips, whatever — goes
+    // to the day-list modal, never straight to a single event.
     eventClick: function (info) {
       info.jsEvent.preventDefault();
-      openEventModal(info.event);
+      if (isNarrow() && calendar.view.type === 'dayGridMonth') {
+        openDayModal(calendar.formatIso(info.event.start).slice(0, 10));
+      } else {
+        openEventModal(info.event);
+      }
     },
 
-    // In list rows, show the location as a Google Maps directions link.
+    // In list rows: inline time under the title (mobile hides the time column
+    // and shows this instead), then the location as a Maps directions link.
     eventDidMount: function (info) {
       if (!info.el.classList.contains('fc-list-event')) return;
-      const loc = info.event.extendedProps && info.event.extendedProps.location;
-      if (!loc) return;
       const cell = info.el.querySelector('.fc-list-event-title');
       if (!cell) return;
+
+      const timeEl = document.createElement('div');
+      timeEl.className = 'event-time-inline';
+      timeEl.textContent = formatTimeRange(info.event);
+      cell.appendChild(timeEl);
+
+      const loc = info.event.extendedProps && info.event.extendedProps.location;
+      if (!loc) return;
       const div = document.createElement('div');
       div.className = 'event-loc';
       const a = locationLink(loc);
       a.addEventListener('click', function (e) { e.stopPropagation(); }); // don't open the popup too
       div.appendChild(a);
       cell.appendChild(div);
-    },
-
-    // On phones, month cells show only dots — tapping the day opens a list modal.
-    dateClick: function (info) {
-      if (isNarrow() && calendar.view.type === 'dayGridMonth') {
-        openDayModal(info.dateStr);
-      }
     },
 
     // Keep the day strip, month dots and iframe height in sync with data/navigation.
@@ -171,6 +177,16 @@ function initCalendar() {
   calendar.render();
   initDayStrip(el);
 
+  // On phones, month cells show only dots — tapping anywhere in the day cell
+  // opens its event-list modal. (Own listener rather than FullCalendar's
+  // dateClick so taps on our injected dots and on event elements all count.)
+  el.addEventListener('click', function (e) {
+    if (!isNarrow() || calendar.view.type !== 'dayGridMonth') return;
+    if (e.target.closest('.fc-event')) return;   // handled by eventClick above
+    const cell = e.target.closest('.fc-daygrid-day[data-date]');
+    if (cell) openDayModal(cell.getAttribute('data-date'));
+  });
+
   // Auto-height for the embedding iframe (carrd) — see postHeight().
   if (window.parent !== window && 'ResizeObserver' in window) {
     new ResizeObserver(postHeight).observe(document.body);
@@ -178,13 +194,42 @@ function initCalendar() {
 }
 
 // Tell the embedding page (carrd iframe snippet) how tall we are, so the
-// iframe can grow instead of showing its own inner scrollbar.
+// iframe can grow instead of showing its own inner scrollbar. Open modals
+// are position:fixed (invisible to body height), so measure them too and
+// grow the iframe when a long day list wouldn't fit.
 function postHeight() {
   if (window.parent === window) return;
-  window.parent.postMessage(
-    { type: 'pokecal:height', height: document.body.scrollHeight },
-    '*'
-  );
+  let h = document.body.scrollHeight;
+  document.querySelectorAll('.modal-overlay:not([hidden]) .modal-box').forEach(function (box) {
+    h = Math.max(h, box.getBoundingClientRect().bottom + 24);
+  });
+  window.parent.postMessage({ type: 'pokecal:height', height: h }, '*');
+}
+
+/* ---------------------------------------------------------------------
+ * Modal positioning inside the embed
+ * In the auto-grown iframe, position:fixed + centered means "middle of the
+ * whole (possibly very tall) embed" — nowhere near what the user tapped.
+ * The iframe can't see the parent page's scroll position, but the tap
+ * coordinates are exactly where the user is looking: anchor the box there.
+ * ------------------------------------------------------------------- */
+
+let lastClickY = 0;
+document.addEventListener('click', function (e) {
+  lastClickY = e.clientY + window.scrollY;
+}, true);
+
+function anchorModal(overlay) {
+  const box = overlay.querySelector('.modal-box');
+  if (window.parent === window) {          // standalone page: viewport centering is right
+    overlay.classList.remove('anchored');
+    box.style.marginTop = '';
+    return;
+  }
+  overlay.classList.add('anchored');
+  const bh = box.offsetHeight;
+  const maxTop = Math.max(12, document.body.scrollHeight - bh - 12);
+  box.style.marginTop = Math.min(Math.max(12, lastClickY - bh / 2), maxTop) + 'px';
 }
 
 /* ---------------------------------------------------------------------
@@ -405,9 +450,14 @@ function openDayModal(dateStr) {
   });
 
   dayModal.overlay.hidden = false;
+  anchorModal(dayModal.overlay);
+  postHeight();
 }
 
-function closeDayModal() { dayModal.overlay.hidden = true; }
+function closeDayModal() {
+  dayModal.overlay.hidden = true;
+  postHeight();
+}
 
 function renderStripCells(days, dots) {
   const today = todayStr();
@@ -611,6 +661,8 @@ function openEventModal(event) {
   renderAttachments(modal.media, (event.extendedProps && event.extendedProps.attachments) || []);
 
   modal.overlay.hidden = false;
+  anchorModal(modal.overlay);
+  postHeight();
 }
 
 /* ------------------------- event graphics ------------------------- */
@@ -635,6 +687,7 @@ function appendImage(container, src, href, alt) {
   img.src = src;
   img.alt = alt || 'Event image';
   img.loading = 'lazy';
+  img.addEventListener('load', postHeight);   // grow the iframe once it arrives
   // If the image can't load (e.g. Drive file not shared publicly),
   // fall back to a plain link instead of a broken image.
   img.addEventListener('error', function () {
@@ -666,7 +719,10 @@ function renderAttachments(container, attachments) {
   });
 }
 
-function closeEventModal() { modal.overlay.hidden = true; }
+function closeEventModal() {
+  modal.overlay.hidden = true;
+  postHeight();
+}
 
 // Render description text into `container`: strips any HTML Google may have
 // stored, keeps line breaks, and turns bare URLs into links.

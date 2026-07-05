@@ -181,6 +181,9 @@ a { color: var(--border); }
 .event-loc a { color: var(--text-muted); text-decoration: underline; }
 .event-loc a:hover { color: var(--border); }
 
+/* Inline time under a list-row title — mobile only (desktop keeps the column) */
+.event-time-inline { display: none; }
+
 /* ---------- Week view day strip ---------- */
 .day-strip[hidden], .strip-empty[hidden] { display: none; }
 .day-strip {
@@ -250,7 +253,14 @@ a { color: var(--border); }
   border-radius: 8px;
   width: 100%; max-width: 440px;
   padding: 16px 18px 18px;
+  max-height: calc(100vh - 24px);   /* standalone fallback: never taller than the screen */
+  overflow-y: auto;
 }
+/* Embedded (iframe) mode: anchor the box near the tap instead of centering
+   in the whole — possibly very tall — embed. app.js sets margin-top. The
+   viewport clamp is lifted: the iframe grows to fit the box instead. */
+.modal-overlay.anchored { align-items: flex-start; }
+.modal-overlay.anchored .modal-box { max-height: none; overflow-y: visible; }
 .modal-close {
   position: absolute; top: 10px; right: 10px;
   width: 26px; height: 26px;
@@ -354,16 +364,13 @@ a { color: var(--border); }
   }
   .day-dots i { display: block; width: 6px; height: 6px; border-radius: 50%; }
 
-  /* List rows (Week/List views): stack — dot + title first, time underneath. */
-  .fc .fc-list-event { display: flex; flex-wrap: wrap; align-items: baseline; }
-  .fc .fc-list-event td { border: none; }
-  .fc .fc-list-event-graphic { order: 0; width: auto; padding-right: 8px; }
-  .fc .fc-list-event-title { order: 1; flex: 1; padding-left: 0; }
-  .fc .fc-list-event-time {
-    order: 2;
-    width: 100%;
-    padding: 0 14px 10px 22px;
-    font-size: 0.82rem;
+  /* List rows (Week/List views): hide the time column; an inline copy sits
+     between the title and the address, matching the address formatting. */
+  .fc .fc-list-event-time { display: none; }
+  .event-time-inline {
+    display: block;
+    margin-top: 3px;
+    font-size: 0.78rem;
     color: var(--text-muted);
   }
 }
