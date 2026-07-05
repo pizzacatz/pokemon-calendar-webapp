@@ -160,10 +160,9 @@ function initCalendar() {
     dayMaxEventRows: 4,                 // overflow into a "+n more" popover in month view
     eventDisplay: 'list-item',          // all-day events render dot-style like timed ones
 
-    // Loading indicator while event sources fetch.
+    // Track fetches so the "no events match" note doesn't flash mid-load.
     loading: function (isLoading) {
-      const note = document.getElementById('loading-note');
-      if (note) note.hidden = !isLoading;
+      eventsLoading = isLoading;
       if (!isLoading) scheduleDecorUpdate(false);
     },
 
@@ -454,16 +453,18 @@ function updateMonthDots() {
     }
     holder.textContent = '';
     const colors = dots[ds] || [];
-    colors.slice(0, MAX_CELL_DOTS).forEach(function (color) {
+    // Up to 4 plain dots; 5+ events drop to 3 dots + "+N" so the badge
+    // never squeezes the circles into ovals.
+    const shown = colors.length > MAX_CELL_DOTS ? 3 : colors.length;
+    colors.slice(0, shown).forEach(function (color) {
       const i = document.createElement('i');
       i.style.background = color;
       holder.appendChild(i);
     });
-    // Busy days: show how many events the dots are hiding.
-    if (colors.length > MAX_CELL_DOTS) {
+    if (colors.length > shown) {
       const more = document.createElement('b');
       more.className = 'dots-more';
-      more.textContent = '+' + (colors.length - MAX_CELL_DOTS);
+      more.textContent = '+' + (colors.length - shown);
       holder.appendChild(more);
     }
   });
@@ -673,14 +674,15 @@ function syncFilters() {
   });
 }
 
+let eventsLoading = false;
+
 // "No events match" note: only when a filter is active and yielded nothing.
 function syncEmptyNote() {
   const note = document.getElementById('filter-empty');
-  const loading = document.getElementById('loading-note');
   if (!note || !calendar) return;
   note.hidden = !(activeCats.size > 0 &&
     calendar.getEvents().length === 0 &&
-    (!loading || loading.hidden));
+    !eventsLoading);
 }
 
 /* ---------------------------------------------------------------------
