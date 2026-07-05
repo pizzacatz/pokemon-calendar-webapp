@@ -77,10 +77,9 @@ function todayStr() {
   return new Intl.DateTimeFormat('en-CA', { timeZone: DISPLAY_TIME_ZONE }).format(new Date());
 }
 
-// Narrow screens get the scannable list view; wide screens get the month grid. PRD §5.3.
+// Narrow screens get compact treatments (dot month cells, stacked list rows). PRD §5.3.
 const NARROW_MAX = 767; // px
 function isNarrow() { return window.innerWidth <= NARROW_MAX; }
-function viewForWidth() { return isNarrow() ? 'listRolling' : 'dayGridMonth'; }
 
 /* ---------------------------------------------------------------------
  * Calendar
@@ -95,7 +94,7 @@ function initCalendar() {
     timeZone: DISPLAY_TIME_ZONE,
     googleCalendarApiKey: GOOGLE_CALENDAR_API_KEY,
 
-    initialView: viewForWidth(),       // month on desktop, list on phones. PRD §5.1 / §5.3
+    initialView: 'dayGridMonth',       // month everywhere; mobile gets dot cells. PRD §5.1 / §5.3
     height: 'auto',
     firstDay: 0,
     navLinks: false,
@@ -157,24 +156,35 @@ function initCalendar() {
       cell.appendChild(div);
     },
 
-    // Keep the day strip + one-day filter in sync with navigation and data.
-    datesSet: function () { scheduleStripUpdate(true); },
-    eventsSet: function () { scheduleStripUpdate(false); },
-
-    // Swap month <-> list as the viewport crosses the breakpoint. PRD §5.3.
-    windowResize: function () {
-      const want = viewForWidth();
-      const auto = ['dayGridMonth', 'listRolling'];
-      // Only auto-swap between the two responsive defaults; respect a manual
-      // pick of Week by leaving it alone.
-      if (auto.includes(calendar.view.type) && calendar.view.type !== want) {
-        calendar.changeView(want);
+    // On phones, month cells show only dots — tapping the day opens a list modal.
+    dateClick: function (info) {
+      if (isNarrow() && calendar.view.type === 'dayGridMonth') {
+        openDayModal(info.dateStr);
       }
     },
+
+    // Keep the day strip, month dots and iframe height in sync with data/navigation.
+    datesSet: function () { scheduleDecorUpdate(true); },
+    eventsSet: function () { scheduleDecorUpdate(false); },
   });
 
   calendar.render();
   initDayStrip(el);
+
+  // Auto-height for the embedding iframe (carrd) — see postHeight().
+  if (window.parent !== window && 'ResizeObserver' in window) {
+    new ResizeObserver(postHeight).observe(document.body);
+  }
+}
+
+// Tell the embedding page (carrd iframe snippet) how tall we are, so the
+// iframe can grow instead of showing its own inner scrollbar.
+function postHeight() {
+  if (window.parent === window) return;
+  window.parent.postMessage(
+    { type: 'pokecal:height', height: document.body.scrollHeight },
+    '*'
+  );
 }
 
 /* ---------------------------------------------------------------------
@@ -201,7 +211,7 @@ function initDayStrip(calendarRoot) {
   stripEmptyEl.hidden = true;
 
   ensureStripAttached();
-  scheduleStripUpdate(true);
+  scheduleDecorUpdate(true);
 }
 
 // The strip lives between FullCalendar's toolbar and the view. FullCalendar
@@ -218,9 +228,13 @@ function ensureStripAttached() {
 }
 
 // FullCalendar may not have flushed the DOM when datesSet/eventsSet fire;
-// defer one tick before (re)building the strip and filtering rows.
-function scheduleStripUpdate(navigated) {
-  setTimeout(function () { updateStrip(navigated); }, 0);
+// defer one tick before (re)building our decorations on top of it.
+function scheduleDecorUpdate(navigated) {
+  setTimeout(function () {
+    updateStrip(navigated);
+    updateMonthDots();
+    postHeight();
+  }, 0);
 }
 
 function updateStrip(navigated) {
@@ -252,21 +266,148 @@ function weekDays() {
   return days;
 }
 
+// [startDate, endDate] (inclusive, YYYY-MM-DD) that an event spans.
+function eventSpan(ev) {
+  const s = calendar.formatIso(ev.start).slice(0, 10);
+  // end is exclusive; pull back 1ms so a midnight end doesn't bleed into the next day
+  const e = ev.end ? calendar.formatIso(new Date(ev.end.valueOf() - 1)).slice(0, 10) : s;
+  return [s, e < s ? s : e];
+}
+
 // Map each day of the week -> category colors of the events on it.
 function dotColorsByDay(days) {
   const dots = {};
   calendar.getEvents().forEach(function (ev) {
     if (!ev.start) return;
-    const s = calendar.formatIso(ev.start).slice(0, 10);
-    // end is exclusive; pull back 1ms so a midnight end doesn't bleed into the next day
-    const e = ev.end ? calendar.formatIso(new Date(ev.end.valueOf() - 1)).slice(0, 10) : s;
+    const span = eventSpan(ev);
     const color = categoryColor(ev);
     days.forEach(function (d) {
-      if (d >= s && d <= e) (dots[d] = dots[d] || []).push(color);
+      if (d >= span[0] && d <= span[1]) (dots[d] = dots[d] || []).push(color);
     });
   });
   return dots;
 }
+
+/* ---------------------------------------------------------------------
+ * Mobile month dots + tap-a-day modal
+ * On narrow screens the month grid hides event chips (CSS) and shows one
+ * dot per event instead; tapping the day lists its events in a modal.
+ * ------------------------------------------------------------------- */
+
+const MAX_CELL_DOTS = 4;
+
+function updateMonthDots() {
+  if (!calendar || calendar.view.type !== 'dayGridMonth') return;
+
+  const cells = document.querySelectorAll('#calendar .fc-daygrid-day[data-date]');
+  if (!cells.length) return;
+
+  // Colors per visible day (single pass over events).
+  const dots = {};
+  calendar.getEvents().forEach(function (ev) {
+    if (!ev.start) return;
+    const span = eventSpan(ev);
+    const color = categoryColor(ev);
+    // walk the span day by day (bounded — spans are at most a few days here)
+    let d = new Date(span[0] + 'T00:00:00Z');
+    for (let i = 0; i < 62; i++) {
+      const ds = d.toISOString().slice(0, 10);
+      if (ds > span[1]) break;
+      (dots[ds] = dots[ds] || []).push(color);
+      d = new Date(d.valueOf() + 86400000);
+    }
+  });
+
+  cells.forEach(function (cell) {
+    const ds = cell.getAttribute('data-date');
+    let holder = cell.querySelector('.day-dots');
+    if (!holder) {
+      holder = document.createElement('span');
+      holder.className = 'day-dots';
+      const frame = cell.querySelector('.fc-daygrid-day-frame') || cell;
+      frame.appendChild(holder);
+    }
+    holder.textContent = '';
+    (dots[ds] || []).slice(0, MAX_CELL_DOTS).forEach(function (color) {
+      const i = document.createElement('i');
+      i.style.background = color;
+      holder.appendChild(i);
+    });
+  });
+}
+
+// All events on a given date, sorted (all-day first, then by start time).
+function eventsOnDate(dateStr) {
+  return calendar.getEvents()
+    .filter(function (ev) {
+      if (!ev.start) return false;
+      const span = eventSpan(ev);
+      return dateStr >= span[0] && dateStr <= span[1];
+    })
+    .sort(function (a, b) {
+      if (a.allDay !== b.allDay) return a.allDay ? -1 : 1;
+      return a.start.valueOf() - b.start.valueOf();
+    });
+}
+
+const dayModal = { overlay: null, title: null, list: null };
+
+function initDayModal() {
+  dayModal.overlay = document.getElementById('day-modal');
+  dayModal.title   = document.getElementById('day-modal-title');
+  dayModal.list    = document.getElementById('day-modal-list');
+
+  document.getElementById('day-modal-close').addEventListener('click', closeDayModal);
+  dayModal.overlay.addEventListener('click', function (e) {
+    if (e.target === dayModal.overlay) closeDayModal();
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && !dayModal.overlay.hidden) closeDayModal();
+  });
+}
+
+function openDayModal(dateStr) {
+  const date = new Date(dateStr + 'T00:00:00Z');
+  dayModal.title.textContent = date.toLocaleDateString(undefined,
+    { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+
+  dayModal.list.textContent = '';
+  const events = eventsOnDate(dateStr);
+  if (!events.length) {
+    const p = document.createElement('p');
+    p.className = 'day-item-empty';
+    p.textContent = 'No events on this day.';
+    dayModal.list.appendChild(p);
+  }
+  events.forEach(function (ev) {
+    const item = document.createElement('button');
+    item.type = 'button';
+    item.className = 'day-item';
+
+    const title = document.createElement('span');
+    title.className = 'day-item-title';
+    const dot = document.createElement('i');
+    dot.style.background = categoryColor(ev);
+    title.appendChild(dot);
+    title.appendChild(document.createTextNode(ev.title || '(untitled)'));
+
+    const time = document.createElement('span');
+    time.className = 'day-item-time';
+    time.textContent = formatTimeRange(ev);
+
+    item.appendChild(title);
+    item.appendChild(time);
+    item.addEventListener('click', function () {
+      closeDayModal();
+      openEventModal(ev);       // tap through to the full details popup
+    });
+    dayModal.list.appendChild(item);
+  });
+
+  dayModal.overlay.hidden = false;
+}
+
+function closeDayModal() { dayModal.overlay.hidden = true; }
 
 function renderStripCells(days, dots) {
   const today = todayStr();
@@ -404,25 +545,36 @@ function initModal() {
   });
 }
 
-function formatWhen(event) {
-  const opts = { timeZone: DISPLAY_TIME_ZONE };
-  const dateOpts = Object.assign({ weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' }, opts);
-  const timeOpts = Object.assign({ hour: 'numeric', minute: '2-digit', timeZoneName: 'short' }, opts);
+// NOTE: with a named timeZone and no timezone plugin, FullCalendar exposes
+// event dates as "fake UTC" — the Date's UTC fields hold the Eastern wall
+// time. So format with timeZone:'UTC' and label the zone ourselves.
+const FAKE_UTC = { timeZone: 'UTC' };
+const DATE_OPTS = Object.assign({ weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' }, FAKE_UTC);
+const TIME_OPTS = Object.assign({ hour: 'numeric', minute: '2-digit' }, FAKE_UTC);
 
+function formatWhen(event) {
   const start = event.start;
   const end = event.end;
   if (!start) return '';
 
-  const dateStr = start.toLocaleDateString(undefined, dateOpts);
+  const dateStr = start.toLocaleDateString(undefined, DATE_OPTS);
   if (event.allDay) return dateStr;
 
-  let s = dateStr + ', ' + start.toLocaleTimeString(undefined, timeOpts);
+  let s = dateStr + ', ' + start.toLocaleTimeString(undefined, TIME_OPTS);
   if (end) {
-    const sameDay = start.toLocaleDateString(undefined, opts) === end.toLocaleDateString(undefined, opts);
+    const sameDay = start.toLocaleDateString(undefined, FAKE_UTC) === end.toLocaleDateString(undefined, FAKE_UTC);
     s += ' – ' + (sameDay
-      ? end.toLocaleTimeString(undefined, timeOpts)
-      : end.toLocaleDateString(undefined, dateOpts) + ', ' + end.toLocaleTimeString(undefined, timeOpts));
+      ? end.toLocaleTimeString(undefined, TIME_OPTS)
+      : end.toLocaleDateString(undefined, DATE_OPTS) + ', ' + end.toLocaleTimeString(undefined, TIME_OPTS));
   }
+  return s + ' ET';
+}
+
+// Compact "6:00 PM – 9:00 PM" (or "All day") for the day-modal rows.
+function formatTimeRange(event) {
+  if (event.allDay || !event.start) return 'All day';
+  let s = event.start.toLocaleTimeString(undefined, TIME_OPTS);
+  if (event.end) s += ' – ' + event.end.toLocaleTimeString(undefined, TIME_OPTS);
   return s;
 }
 
@@ -562,5 +714,6 @@ document.addEventListener('DOMContentLoaded', function () {
   }
   buildFilterPanel();
   initModal();
+  initDayModal();
   initCalendar();
 });

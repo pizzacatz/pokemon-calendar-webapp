@@ -281,6 +281,35 @@ a { color: var(--border); }
 }
 .modal-media a { font-size: 0.85rem; }
 
+/* Day event-list modal (mobile month view) */
+.day-list { display: flex; flex-direction: column; }
+.day-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: var(--text);
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border-dim);
+  padding: 10px 2px;
+  cursor: pointer;
+}
+.day-item:last-child { border-bottom: none; }
+.day-item:hover { background: var(--hover); }
+.day-item-title { display: block; font-weight: bold; line-height: 1.35; }
+.day-item-title i {
+  display: inline-block;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  margin-right: 8px;
+}
+.day-item-time { display: block; margin-top: 2px; padding-left: 16px; font-size: 0.82rem; color: var(--text-muted); }
+.day-item-empty { color: var(--text-muted); margin: 8px 0; }
+
+/* Month-cell activity dots (visible on mobile only) */
+.day-dots { display: none; }
+
 /* ---------- Footer ---------- */
 .app-footer {
   max-width: 1100px;
@@ -309,4 +338,32 @@ a { color: var(--border); }
   .fc .fc-toolbar-chunk { display: flex; justify-content: center; flex-wrap: wrap; gap: 4px; }
   .fc .fc-button { padding: 8px 12px; }                  /* bigger tap targets */
   .fc .fc-toolbar-title { text-align: center; }
+
+  /* Month view -> dot cells: hide event chips ("+n more" lives in the same
+     container), show per-event dots instead; tap the day for the list modal. */
+  .fc .fc-daygrid-day-events { display: none; }
+  .fc .fc-daygrid-day { cursor: pointer; }
+  .fc .fc-daygrid-day-frame { min-height: 54px; }
+  .fc .fc-daygrid-day-top { justify-content: center; }
+  .fc .fc-daygrid-day-number { padding: 4px 4px 0; }
+  .day-dots {
+    display: flex;
+    justify-content: center;
+    gap: 3px;
+    padding: 3px 0 5px;
+  }
+  .day-dots i { display: block; width: 6px; height: 6px; border-radius: 50%; }
+
+  /* List rows (Week/List views): stack — dot + title first, time underneath. */
+  .fc .fc-list-event { display: flex; flex-wrap: wrap; align-items: baseline; }
+  .fc .fc-list-event td { border: none; }
+  .fc .fc-list-event-graphic { order: 0; width: auto; padding-right: 8px; }
+  .fc .fc-list-event-title { order: 1; flex: 1; padding-left: 0; }
+  .fc .fc-list-event-time {
+    order: 2;
+    width: 100%;
+    padding: 0 14px 10px 22px;
+    font-size: 0.82rem;
+    color: var(--text-muted);
+  }
 }
