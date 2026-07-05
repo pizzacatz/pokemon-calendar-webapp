@@ -72,10 +72,20 @@ function setup() {
   const sheet = _responseSheet();
   _ensureColumns(sheet);
 
+  // Times are interpreted per-time-zone in three places (sheet, script,
+  // calendar). Align the sheet automatically; the script's own zone can only
+  // be set in the editor, so shout if it's wrong.
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  ss.setSpreadsheetTimeZone('America/New_York');
+  if (Session.getScriptTimeZone() !== 'America/New_York') {
+    Logger.log('*** WARNING: script time zone is %s. Set it to America/New_York in ' +
+      'Project Settings (gear icon) or event times will be shifted. ***',
+      Session.getScriptTimeZone());
+  }
+
   ScriptApp.getProjectTriggers()
     .filter(t => ['handleFormSubmit', 'handleEdit'].includes(t.getHandlerFunction()))
     .forEach(t => ScriptApp.deleteTrigger(t));
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
   ScriptApp.newTrigger('handleFormSubmit').forSpreadsheet(ss).onFormSubmit().create();
   ScriptApp.newTrigger('handleEdit').forSpreadsheet(ss).onEdit().create();
 
@@ -188,10 +198,12 @@ function _publish(v) {
   const options = { location: location, description: description };
 
   let event;
-  if (v[Q.start] instanceof Date) {
-    const start = _combine(v[Q.date], v[Q.start]);
-    let end = (v[Q.end] instanceof Date)
-      ? _combine(v[Q.date], v[Q.end])
+  const startTime = _toTime(v[Q.start]);
+  const endTime = _toTime(v[Q.end]);
+  if (startTime) {
+    const start = _combine(v[Q.date], startTime);
+    let end = endTime
+      ? _combine(v[Q.date], endTime)
       : new Date(start.getTime() + DEFAULT_DURATION_HOURS * 3600000);
     if (end <= start) end = new Date(end.getTime() + 86400000);   // crosses midnight
     event = cal.createEvent(title, start, end, options);
@@ -199,6 +211,45 @@ function _publish(v) {
     event = cal.createAllDayEvent(title, v[Q.date], options);     // no start time given
   }
   return event.getId();
+}
+
+/**
+ * Coerces a sheet cell to a {hours, minutes} time, or null.
+ * Accepts real time cells (Date objects) and text like "6:00 PM" / "18:00".
+ */
+function _toTime(val) {
+  if (val instanceof Date) return { hours: val.getHours(), minutes: val.getMinutes() };
+  const m = String(val || '').trim().match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)?$/i);
+  if (!m) return null;
+  let hours = Number(m[1]);
+  const ampm = (m[3] || '').toUpperCase();
+  if (ampm === 'PM' && hours < 12) hours += 12;
+  if (ampm === 'AM' && hours === 12) hours = 0;
+  return { hours: hours, minutes: Number(m[2]) };
+}
+
+/**
+ * Paste-and-run diagnostic: logs exactly what the script sees for a row.
+ * Set the row number below, run it, then View -> Logs (Ctrl+Enter).
+ */
+function debugRow() {
+  const ROW = 2;                       // <-- change to the row you're testing
+  const sheet = _responseSheet();
+  const cols = _cols(sheet);
+  const v = _rowValues(sheet, ROW, cols);
+  Logger.log('Sheet tz: %s | Script tz: %s',
+    SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone(),
+    Session.getScriptTimeZone());
+  Object.keys(Q).forEach(function (k) {
+    const val = v[Q[k]];
+    Logger.log('%s ("%s"): [%s] %s', k, Q[k],
+      Object.prototype.toString.call(val), String(val));
+  });
+  Logger.log('Parsed start: %s | Parsed end: %s',
+    JSON.stringify(_toTime(v[Q.start])), JSON.stringify(_toTime(v[Q.end])));
+  Logger.log('Headers not matched by Q: %s',
+    Object.keys(cols).filter(h => Object.values(Q).indexOf(h) === -1
+      && [STATUS_COL, EVENT_ID_COL, 'Timestamp', 'Email Address'].indexOf(h) === -1).join(' | ') || '(none)');
 }
 
 // ======= HELPERS =======
@@ -239,8 +290,8 @@ function _ensureColumns(sheet) {
   sheet.getRange(2, statusCol, sheet.getMaxRows() - 1, 1).setDataValidation(rule);
 }
 
-/** Date question + time question -> one Date in the script time zone. */
-function _combine(dateVal, timeVal) {
+/** Date cell + parsed {hours, minutes} -> one Date in the script time zone. */
+function _combine(dateVal, time) {
   return new Date(dateVal.getFullYear(), dateVal.getMonth(), dateVal.getDate(),
-                  timeVal.getHours(), timeVal.getMinutes(), 0, 0);
+                  time.hours, time.minutes, 0, 0);
 }
