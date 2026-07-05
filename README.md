@@ -43,27 +43,40 @@ free/busy-only sharing level strips titles/locations and events render as
 
 ## Embedding (carrd.co or any site)
 
-Add an Embed element (Code) with:
+**Important:** carrd "pages" are sections of ONE HTML document, so every embed
+on the site coexists in the same DOM. Never target the iframe by id (ids
+collide and all height messages land on the first iframe — some embeds stay
+clipped, others inflate with empty space). Match by `e.source` instead.
+
+Each embed is just an iframe (vary `view=`/`cats=` per page):
 
 ```html
-<iframe id="pokecal"
+<iframe
   src="https://pizzacatz.github.io/pokemon-calendar-webapp/?embed=1"
   style="width:100%; height:900px; border:0;"
   scrolling="no"
   title="Pokémon Events Calendar"></iframe>
+```
+
+Plus this listener once anywhere on the site (per-embed duplicates are
+harmless — it routes each message to the iframe that sent it):
+
+```html
 <script>
 window.addEventListener('message', function (e) {
   if (e.origin !== 'https://pizzacatz.github.io') return;
-  if (e.data && e.data.type === 'pokecal:height') {
-    document.getElementById('pokecal').style.height = e.data.height + 'px';
-  }
+  if (!e.data || e.data.type !== 'pokecal:height') return;
+  document.querySelectorAll('iframe').forEach(function (f) {
+    if (f.contentWindow === e.source) f.style.height = e.data.height + 'px';
+  });
 });
 </script>
 ```
 
 The app posts its content height (`pokecal:height`) whenever it changes —
-including when modals open — so the iframe grows/shrinks and the page never
-double-scrolls. The 900px is only a pre-load fallback.
+view switches, data loads, modals opening/closing — so each iframe grows AND
+shrinks to fit and the page never double-scrolls. The 900px is only a
+pre-load fallback.
 
 ### Per-page URL parameters
 
@@ -82,20 +95,8 @@ Prerelease page (agenda): ?embed=1&view=agenda&cats=prereleases
 Everything (default):    ?embed=1
 ```
 
-Multiple widgets on the **same** page: give each iframe a unique `id`, or use
-this listener once and drop the ids entirely:
-
-```html
-<script>
-window.addEventListener('message', function (e) {
-  if (e.origin !== 'https://pizzacatz.github.io') return;
-  if (!e.data || e.data.type !== 'pokecal:height') return;
-  document.querySelectorAll('iframe').forEach(function (f) {
-    if (f.contentWindow === e.source) f.style.height = e.data.height + 'px';
-  });
-});
-</script>
-```
+Any number of widgets can coexist — the `e.source`-matching listener above
+routes each height message to its own iframe automatically.
 
 ## Features
 
