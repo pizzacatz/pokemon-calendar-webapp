@@ -171,8 +171,8 @@ function initCalendar() {
       // our custom day strip filters it down to one selected day.
       weekStrip:   { type: 'list', duration: { weeks: 1 }, buttonText: 'Week' },
       // Rolling list anchored on "now" (not snapped to the month), so today
-      // is always at the top. prev/next page by 30 days.
-      listRolling: { type: 'list', duration: { days: 30 }, buttonText: 'List' },
+      // is always at the top. prev/next page by 3 months.
+      listRolling: { type: 'list', duration: { months: 3 }, buttonText: 'List' },
     },
 
     headerToolbar: {

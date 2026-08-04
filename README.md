@@ -102,7 +102,7 @@ routes each height message to its own iframe automatically.
 
 - **Views:** Month, custom "Week" (7-day strip with per-category activity
   dots + one-day list, like the old eventscalendar.co widget), and a rolling
-  30-day List anchored on today.
+  3-month List anchored on today.
 - **Filtering:** chips are *filters*, not visibility toggles — nothing
   selected (the "All" chip lit) shows everything; tapping a category shows
   only the selected categories (additive); "All" resets. Works in every view
