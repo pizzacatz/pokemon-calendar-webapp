@@ -7,6 +7,45 @@ embedded into carrd.co pages as an auto-sizing iframe widget.
 
 **Live:** https://pizzacatz.github.io/pokemon-calendar-webapp/
 
+## Majors
+
+Regionals, Specials, Internationals and Worlds come from a different place to
+everything else on this calendar.
+
+The five pokedata feeds behind the Google Calendars carry **locals only** — Cups,
+Challenges and Prereleases — so majors were not stale, they were absent. They are
+scraped instead from the official events feed:
+
+```
+https://championships.pokemon.com/api/events.json
+```
+
+Plain JSON, no key, no headless browser, every published major for the season.
+`scraper/majors.mjs` reads it and writes `data/majors.json`, which the calendar
+loads as a seventh category alongside the six Google Calendars.
+
+```bash
+node scraper/majors.test.mjs   # date-parsing checks
+node scraper/majors.mjs        # rewrite data/majors.json
+```
+
+`.github/workflows/majors.yml` runs both daily and commits only when the schedule
+actually changes. This follows the pattern in
+[pokemon-majors-map](https://github.com/pizzacatz/pokemon-majors-map): scrape on a
+schedule, commit the result, and let the static site read a versioned file rather
+than scrape at runtime.
+
+**The date rule worth knowing.** The feed labels an event with the *season* it
+belongs to, not the calendar year it falls in, and gives no year in the displayed
+range. A Championship Series season runs September to August, so `"Sept. 18–20"`
+in the 2027 season is September **2026**. Months from September onward take the
+previous calendar year; January onward take the season year. That single rule is
+what `majors.test.mjs` exists to protect.
+
+Output cross-checks against `pokemon-majors-map`, which reaches the same 33 events
+by a different route — all 33 start dates agree.
+
+
 ## Architecture
 
 ```

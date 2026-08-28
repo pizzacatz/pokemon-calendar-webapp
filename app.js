@@ -31,21 +31,35 @@ const CALENDARS = [
   { id: 'tcg-prerelease', label: 'Prereleases',    color: '#b39ddb', googleCalendarId: '24b6777e29ee1fb3e942d1eea996fc257b099474cfff9ac297a571d73b9c2586@group.calendar.google.com' },
   // 6th calendar — community / unofficial events (maintained manually). PRD §2, §8.
   { id: 'community',      label: 'Community',      color: '#ffa726', googleCalendarId: 'df8623bf7aaa7fcaa7cf4e03909f78409895db4819355a5d7b4c396da852aaba@group.calendar.google.com' },
+  // 7th — Regionals, Specials, Internationals and Worlds. Not a Google Calendar:
+  // the pokedata feeds behind the others carry locals only, so majors come from
+  // the official events feed, scraped daily into data/majors.json.
+  { id: 'majors',         label: 'Majors',         color: '#ffd54f', url: 'data/majors.json' },
 ];
 
 /* ---------------------------------------------------------------------
  * Helpers
  * ------------------------------------------------------------------- */
 
-// Build a FullCalendar event-source config from a CALENDARS entry.
+// Build a FullCalendar event-source config from a CALENDARS entry. A category is
+// backed either by a Google Calendar or by a static JSON feed in this repo.
 function sourceConfig(cal) {
-  return {
+  const base = {
     id: cal.id,
-    googleCalendarId: cal.googleCalendarId,
     color: cal.color,        // event chip background / list-view dot
     textColor: '#1a1a1a',    // dark text on the bright chip colors
     className: 'cat-' + cal.id,
   };
+  if (cal.url) {
+    return Object.assign(base, {
+      url: cal.url,
+      format: 'json',
+      // The feed is {meta, events}; FullCalendar wants just the array back.
+      success: function (raw) { return (raw && raw.events) || raw; },
+      failure: function () { console.warn('[calendar] could not load ' + cal.url); },
+    });
+  }
+  return Object.assign(base, { googleCalendarId: cal.googleCalendarId });
 }
 
 function categoryColor(event) {
@@ -192,7 +206,10 @@ function initCalendar() {
     // clean the junk tail off locations.
     eventDataTransform: function (eventData) {
       if (!eventData.title) eventData.title = '(untitled)';
-      delete eventData.url;
+      // Google Calendar's own URL is useless to a visitor, so it is stripped.
+      // Majors carry a link to the official event page, which is worth keeping.
+      var isMajor = eventData.extendedProps && eventData.extendedProps.category;
+      if (!isMajor) delete eventData.url;
       // The Google Calendar plugin puts location/description at the top level
       // of the raw data (FullCalendar folds them into extendedProps later).
       if (eventData.location) eventData.location = cleanLocation(eventData.location);
