@@ -121,9 +121,10 @@ routes each height message to its own iframe automatically.
   returning to that list.
 - **Copy event details:** two icon buttons in the popup. The clipboard icon
   copies title / when / where / official link as plain text; the Discord icon
-  copies a Discord-ready version (bold title, `<t:…:F>` / `<t:…:R>`
-  timestamps that render in each reader's local zone, ET text, 📍 address,
-  🔗 link). The official link is the first non-image URL in the description.
+  copies the same lines with a bold title, the address as a Google Maps
+  markdown link and the URL as an "Official event page" link (both wrapped in
+  `<…>` so Discord shows no preview). The official link is the first non-image
+  URL in the description.
   Uses `navigator.clipboard` with an `execCommand('copy')` fallback, so it
   works inside cross-origin iframes even without `allow="clipboard-write"`.
 - **Locations** are cleaned of the upstream feed's `, US, , City/US` tail.

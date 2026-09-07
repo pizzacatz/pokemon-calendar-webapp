@@ -909,47 +909,16 @@ function formatEventPlain(event) {
   return lines.join('\n');
 }
 
-// Convert one of FullCalendar's "fake UTC" dates (UTC fields = Eastern wall
-// time) into a real epoch-seconds value, so Discord's <t:…> timestamps show
-// the right instant in every reader's local time zone. Handles DST by
-// asking Intl what the ET offset is at the candidate instant.
-function easternWallToUnix(fakeUtc) {
-  const wall = fakeUtc.getTime();
-  const fmt = new Intl.DateTimeFormat('en-US', {
-    timeZone: DISPLAY_TIME_ZONE, hourCycle: 'h23',
-    year: 'numeric', month: 'numeric', day: 'numeric',
-    hour: 'numeric', minute: 'numeric', second: 'numeric',
-  });
-  // Wall-clock time of instant `t` in ET, re-expressed as a UTC ms value.
-  function wallAt(t) {
-    const p = {};
-    fmt.formatToParts(new Date(t)).forEach(function (x) { p[x.type] = x.value; });
-    return Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour % 24, +p.minute, +p.second);
-  }
-  let guess = wall + 5 * 3600 * 1000;          // ET is UTC−5 (or −4 in summer)
-  guess -= wallAt(guess) - wall;               // correct for the actual offset
-  guess -= wallAt(guess) - wall;               // once more, for DST boundaries
-  return Math.round(guess / 1000);
-}
-
+// Same lines as the plain version, but the address and event page are
+// Discord markdown links. The <…> around each URL suppresses link previews.
 function formatEventDiscord(event) {
   const lines = ['**' + (event.title || '(untitled event)') + '**'];
+  const when = formatWhen(event);
   const loc = event.extendedProps && event.extendedProps.location;
   const url = eventUrl(event);
-
-  if (event.start) {
-    if (event.allDay) {
-      lines.push('📅 ' + event.start.toLocaleDateString(undefined, DATE_OPTS));
-    } else {
-      // Discord renders <t:unix:F> in each reader's local zone and <t:unix:R>
-      // as "in 3 days"; keep the ET text so the local time is unambiguous.
-      const unix = easternWallToUnix(event.start);
-      lines.push('📅 <t:' + unix + ':F> (<t:' + unix + ':R>)');
-      lines.push('🕒 ' + formatWhen(event));
-    }
-  }
-  if (loc) lines.push('📍 ' + loc);
-  if (url) lines.push('🔗 ' + url);
+  if (when) lines.push('When: ' + when);
+  if (loc)  lines.push('Where: [' + loc + '](<' + mapsUrl(loc) + '>)');
+  if (url)  lines.push('Link: [Official event page](<' + url + '>)');
   return lines.join('\n');
 }
 
