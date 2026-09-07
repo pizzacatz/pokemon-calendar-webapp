@@ -55,6 +55,7 @@ Each embed is just an iframe (vary `view=`/`cats=` per page):
   src="https://pizzacatz.github.io/pokemon-calendar-webapp/?embed=1"
   style="width:100%; height:900px; border:0;"
   scrolling="no"
+  allow="clipboard-write"
   title="Pokémon Events Calendar"></iframe>
 ```
 
@@ -118,6 +119,13 @@ routes each height message to its own iframe automatically.
   attachments or direct image URLs in the description. Never links to the
   Google Calendar event page. Opened from a day list, it has a ‹ Back button
   returning to that list.
+- **Copy event details:** two icon buttons in the popup. The clipboard icon
+  copies title / when / where / official link as plain text; the Discord icon
+  copies a Discord-ready version (bold title, `<t:…:F>` / `<t:…:R>`
+  timestamps that render in each reader's local zone, ET text, 📍 address,
+  🔗 link). The official link is the first non-image URL in the description.
+  Uses `navigator.clipboard` with an `execCommand('copy')` fallback, so it
+  works inside cross-origin iframes even without `allow="clipboard-write"`.
 - **Locations** are cleaned of the upstream feed's `, US, , City/US` tail.
 
 ## Community event submissions (Google Form)

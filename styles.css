@@ -320,6 +320,21 @@ a { color: var(--border); }
 .modal-row dt { flex: none; width: 52px; font-weight: bold; color: var(--text-muted); }
 .modal-row dd { margin: 0; word-break: break-word; }
 .modal-desc { white-space: pre-line; }   /* keep line breaks in descriptions */
+/* Copy-to-clipboard buttons: plain text + Discord markdown */
+.modal-actions { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
+.modal-action {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--text-muted);
+  border-radius: 8px;
+  cursor: pointer;
+}
+.modal-action:hover { border-color: var(--border); color: var(--border); }
+.modal-action:active { background: var(--hover); }
+.modal-action.copied { border-color: var(--border); color: var(--border); }
+.modal-copy-status { font-size: 0.8rem; color: var(--text-muted); }
 .modal-media { display: flex; flex-direction: column; gap: 8px; }
 .modal-media:not(:empty) { margin-top: 12px; }
 .modal-media img {

@@ -695,6 +695,8 @@ const modal = {
   whereRow: null, where: null,
   linkRow: null, link: null,
   media: null, back: null,
+  copy: null, copyDiscord: null, copyStatus: null,
+  event: null,        // the event currently shown, for the copy buttons
   fromDay: null,      // date the day-list modal was showing, for back-navigation
 };
 
@@ -710,6 +712,16 @@ function initModal() {
   modal.link     = document.getElementById('modal-link');
   modal.media    = document.getElementById('modal-media');
   modal.back     = document.getElementById('modal-back');
+  modal.copy        = document.getElementById('modal-copy');
+  modal.copyDiscord = document.getElementById('modal-copy-discord');
+  modal.copyStatus  = document.getElementById('modal-copy-status');
+
+  modal.copy.addEventListener('click', function () {
+    if (modal.event) copyEventText(modal.copy, formatEventPlain(modal.event), 'Copied!');
+  });
+  modal.copyDiscord.addEventListener('click', function () {
+    if (modal.event) copyEventText(modal.copyDiscord, formatEventDiscord(modal.event), 'Copied for Discord!');
+  });
 
   document.getElementById('modal-close').addEventListener('click', closeEventModal);
   document.getElementById('modal-close-bottom').addEventListener('click', closeEventModal);
@@ -761,8 +773,10 @@ function formatTimeRange(event) {
 }
 
 function openEventModal(event, fromDay) {
+  modal.event = event;
   modal.fromDay = fromDay || null;
   modal.back.hidden = !modal.fromDay;
+  setCopyStatus('');
 
   modal.title.textContent = event.title || '(untitled event)';
   modal.swatch.style.background = categoryColor(event);
@@ -856,8 +870,133 @@ function renderAttachments(container, attachments) {
 
 function closeEventModal() {
   modal.overlay.hidden = true;
+  modal.event = null;
   modal.fromDay = null;
   postHeight();
+}
+
+/* ---------------------------------------------------------------------
+ * Copy event details (plain text / Discord markdown)
+ * ------------------------------------------------------------------- */
+
+// Description text with any stored HTML stripped (Google sometimes wraps
+// descriptions in <p>/<br>/<a> tags).
+function plainDescription(event) {
+  const raw = (event.extendedProps && event.extendedProps.description) || '';
+  return String(raw).replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]*>/g, '').trim();
+}
+
+// The official event page: the first non-image link in the description.
+// (The sync script stores the source URL as the description; community
+// submissions put their link on its own line.)
+function eventUrl(event) {
+  const m = plainDescription(event).match(/https?:\/\/[^\s"'<>]+/g) || [];
+  for (let i = 0; i < m.length; i++) {
+    const u = m[i].replace(/[.,;:)\]]+$/, '');   // trailing punctuation isn't part of a URL
+    if (!isImageUrl(u)) return u;
+  }
+  return '';
+}
+
+function formatEventPlain(event) {
+  const lines = [event.title || '(untitled event)'];
+  const when = formatWhen(event);
+  const loc = event.extendedProps && event.extendedProps.location;
+  const url = eventUrl(event);
+  if (when) lines.push('When: ' + when);
+  if (loc)  lines.push('Where: ' + loc);
+  if (url)  lines.push('Link: ' + url);
+  return lines.join('\n');
+}
+
+// Convert one of FullCalendar's "fake UTC" dates (UTC fields = Eastern wall
+// time) into a real epoch-seconds value, so Discord's <t:…> timestamps show
+// the right instant in every reader's local time zone. Handles DST by
+// asking Intl what the ET offset is at the candidate instant.
+function easternWallToUnix(fakeUtc) {
+  const wall = fakeUtc.getTime();
+  const fmt = new Intl.DateTimeFormat('en-US', {
+    timeZone: DISPLAY_TIME_ZONE, hourCycle: 'h23',
+    year: 'numeric', month: 'numeric', day: 'numeric',
+    hour: 'numeric', minute: 'numeric', second: 'numeric',
+  });
+  // Wall-clock time of instant `t` in ET, re-expressed as a UTC ms value.
+  function wallAt(t) {
+    const p = {};
+    fmt.formatToParts(new Date(t)).forEach(function (x) { p[x.type] = x.value; });
+    return Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour % 24, +p.minute, +p.second);
+  }
+  let guess = wall + 5 * 3600 * 1000;          // ET is UTC−5 (or −4 in summer)
+  guess -= wallAt(guess) - wall;               // correct for the actual offset
+  guess -= wallAt(guess) - wall;               // once more, for DST boundaries
+  return Math.round(guess / 1000);
+}
+
+function formatEventDiscord(event) {
+  const lines = ['**' + (event.title || '(untitled event)') + '**'];
+  const loc = event.extendedProps && event.extendedProps.location;
+  const url = eventUrl(event);
+
+  if (event.start) {
+    if (event.allDay) {
+      lines.push('📅 ' + event.start.toLocaleDateString(undefined, DATE_OPTS));
+    } else {
+      // Discord renders <t:unix:F> in each reader's local zone and <t:unix:R>
+      // as "in 3 days"; keep the ET text so the local time is unambiguous.
+      const unix = easternWallToUnix(event.start);
+      lines.push('📅 <t:' + unix + ':F> (<t:' + unix + ':R>)');
+      lines.push('🕒 ' + formatWhen(event));
+    }
+  }
+  if (loc) lines.push('📍 ' + loc);
+  if (url) lines.push('🔗 ' + url);
+  return lines.join('\n');
+}
+
+function setCopyStatus(text) {
+  modal.copyStatus.textContent = text;
+}
+
+// Write to the clipboard. navigator.clipboard needs a secure context and, in
+// cross-origin iframes (the carrd embeds), the `clipboard-write` permission;
+// fall back to the legacy execCommand path, which works on a user gesture
+// anywhere.
+function writeClipboard(text) {
+  function legacy() {
+    return new Promise(function (resolve, reject) {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.setAttribute('readonly', '');
+      ta.style.position = 'fixed'; ta.style.top = '0'; ta.style.left = '0';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.focus(); ta.select();
+      let ok = false;
+      try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+      document.body.removeChild(ta);
+      ok ? resolve() : reject(new Error('copy failed'));
+    });
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    return navigator.clipboard.writeText(text).catch(legacy);
+  }
+  return legacy();
+}
+
+let copyStatusTimer = null;
+function copyEventText(button, text, doneMsg) {
+  writeClipboard(text).then(function () {
+    button.classList.add('copied');
+    setCopyStatus(doneMsg);
+  }, function () {
+    setCopyStatus('Couldn’t copy — select the text above instead.');
+  }).then(function () {
+    clearTimeout(copyStatusTimer);
+    copyStatusTimer = setTimeout(function () {
+      button.classList.remove('copied');
+      setCopyStatus('');
+    }, 2000);
+  });
 }
 
 // Render description text into `container`: strips any HTML Google may have
