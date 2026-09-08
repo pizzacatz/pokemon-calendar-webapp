@@ -119,7 +119,8 @@ routes each height message to its own iframe automatically.
   attachments or direct image URLs in the description. Never links to the
   Google Calendar event page. Opened from a day list, it has a ‹ Back button
   returning to that list.
-- **Copy event details:** two icon buttons in the popup. The clipboard icon
+- **Copy event details:** two icon buttons in the popup, there to make
+  sharing an event elsewhere (especially Discord) a one-click job. The clipboard icon
   copies title / when / where / official link as plain text; the Discord icon
   copies the same lines with a bold title, the address as a Google Maps
   markdown link and the URL as an "Official event page" link (both wrapped in

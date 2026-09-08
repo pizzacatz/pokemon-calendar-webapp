@@ -198,3 +198,9 @@ mobile month redesigned (see below).
   URLs) in the popup, Google Maps directions links for locations, location
   junk-tail cleanup, per-embed URL params (`view=`, `cats=`) so each carrd
   page defaults to its own view and category set.
+- Added Sept 2026: **copy event details** buttons in the popup, so organisers
+  and players can share an event elsewhere — above all in Discord — without
+  retyping it. Plain-text copy (title / when / where / link) and a Discord
+  copy with the same lines as markdown (bold title, address linked to Google
+  Maps directions, "Official event page" linked to the event URL, previews
+  suppressed).
