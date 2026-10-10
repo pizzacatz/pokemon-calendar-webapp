@@ -102,8 +102,13 @@ routes each height message to its own iframe automatically.
 ## Features
 
 - **Views:** Month, custom "Week" (7-day strip with per-category activity
-  dots + one-day list, like the old eventscalendar.co widget), and a rolling
-  3-month List anchored on today.
+  dots + one-day list, like the old eventscalendar.co widget), and a List.
+- **List view:** the next 30 days starting today (never past events first);
+  prev/next step 30 days. "View all" (toolbar and list footer) shows every
+  upcoming event for the next 12 months, with no paging. Day headers read
+  "October 24, 2026 - Saturday" ("Oct 24 - Sat" on phones) with a per-day
+  event count; today's is marked. Busy days are never capped — the point is
+  to see everything. An empty range offers "View all" instead of a dead end.
 - **Filtering:** chips are *filters*, not visibility toggles — nothing
   selected (the "All" chip lit) shows everything; tapping a category shows
   only the selected categories (additive); "All" resets. Works in every view

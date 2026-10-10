@@ -182,6 +182,32 @@ a { color: var(--border); }
 .fc .fc-list-day-cushion { background: var(--bg); }
 .fc .fc-list-event-title, .fc .fc-list-event-time { color: var(--text); }
 
+/* List view: per-day count, "Today" marker, range toggles, footer paging.
+   app.js sets #calendar[data-view] to the current view type. */
+.list-day-count { float: right; font-weight: normal; font-size: 0.82rem; color: var(--text-muted); }
+.fc .fc-list-day.fc-day-today .fc-list-day-text::before { content: "Today · "; color: var(--border); }
+#calendar .fc-listAllBtn-button, #calendar .fc-list30Btn-button { display: none; }
+#calendar[data-view="listRolling"] .fc-listAllBtn-button,
+#calendar[data-view="listAll"] .fc-list30Btn-button { display: inline-block; }
+/* "View all" has nothing to page through */
+#calendar[data-view="listAll"] .fc-prev-button,
+#calendar[data-view="listAll"] .fc-next-button,
+#calendar[data-view="listAll"] .fc-today-button { display: none; }
+/* ...and is still the List tab */
+#calendar[data-view="listAll"] .fc-listRolling-button {
+  background: var(--border);
+  color: #1a1a1a;
+  border-color: var(--border);
+  font-weight: bold;
+}
+.list-footer[hidden] { display: none; }
+.list-footer { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+#calendar[data-view="listRolling"] .lf-30,
+#calendar[data-view="listAll"] .lf-next,
+#calendar[data-view="listAll"] .lf-all { display: none; }
+.list-empty { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.list-empty p { margin: 0; }
+
 /* Address line under a list-row title -> Google Maps directions link */
 .event-loc { margin-top: 3px; font-size: 0.78rem; }
 .event-loc a { color: var(--text-muted); text-decoration: underline; }

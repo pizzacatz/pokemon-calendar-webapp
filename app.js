@@ -145,6 +145,18 @@ function catVisible(cal) {
  * ------------------------------------------------------------------- */
 
 let calendar;
+let lastViewType = null;
+
+// List day headers: "October 24, 2026 - Saturday", or "Oct 24 - Sat" on
+// phones so the "Today" marker and event count (added by updateListDecor)
+// still fit on one line. FullCalendar hands over a fake-UTC date, hence UTC.
+function LIST_DAY_FORMAT(arg) {
+  const d = arg.date.marker;
+  const narrow = isNarrow();
+  const date = narrow ? { month: 'short', day: 'numeric' } : { month: 'long', day: 'numeric', year: 'numeric' };
+  return d.toLocaleDateString('en-US', Object.assign({ timeZone: 'UTC' }, date)) +
+    ' - ' + d.toLocaleDateString('en-US', { weekday: narrow ? 'short' : 'long', timeZone: 'UTC' });
+}
 
 function initCalendar() {
   const el = document.getElementById('calendar');
@@ -170,13 +182,36 @@ function initCalendar() {
       // Widget-style week: FullCalendar renders the whole week as a list;
       // our custom day strip filters it down to one selected day.
       weekStrip:   { type: 'list', duration: { weeks: 1 }, buttonText: 'Week' },
-      // Rolling list anchored on "now" (not snapped to the month), so today
-      // is always at the top. prev/next page by 3 months.
-      listRolling: { type: 'list', duration: { months: 3 }, buttonText: 'List' },
+      // Rolling 30 days starting today. A day-based duration isn't snapped to
+      // the month, so nothing already past shows. prev/next step 30 days.
+      listRolling: {
+        type: 'list', duration: { days: 30 }, buttonText: 'List',
+        listDayFormat: LIST_DAY_FORMAT, listDaySideFormat: false,
+        noEventsContent: listEmptyContent,
+      },
+      // "View all": every upcoming event, today through the next 12 months.
+      listAll: {
+        type: 'list',
+        visibleRange: function () {
+          const end = new Date(todayStr() + 'T00:00:00Z');
+          end.setUTCFullYear(end.getUTCFullYear() + 1);
+          return { start: todayStr(), end: end.toISOString().slice(0, 10) };
+        },
+        titleFormat: function () { return 'All upcoming events'; },
+        listDayFormat: LIST_DAY_FORMAT, listDaySideFormat: false,
+        noEventsContent: listEmptyContent,
+      },
+    },
+
+    // List-view range toggles. Both sit in the toolbar; CSS shows the one
+    // that applies to the current view (see #calendar[data-view]).
+    customButtons: {
+      listAllBtn: { text: 'View all', click: function () { calendar.changeView('listAll'); } },
+      list30Btn:  { text: 'Next 30 days', click: function () { calendar.changeView('listRolling'); } },
     },
 
     headerToolbar: {
-      left: 'prev,next today',
+      left: 'prev,next today listAllBtn list30Btn',
       center: 'title',
       right: 'dayGridMonth,weekStrip,listRolling',
     },
@@ -245,7 +280,19 @@ function initCalendar() {
     },
 
     // Keep the day strip, month dots and iframe height in sync with data/navigation.
-    datesSet: function () { scheduleDecorUpdate(true); },
+    datesSet: function (info) {
+      const type = info.view.type;
+      el.dataset.view = type;   // lets CSS tailor the toolbar per view
+      // Entering the 30-day list always starts from today, wherever the
+      // Month/Week views had been navigated to.
+      const entered = type === 'listRolling' && lastViewType !== 'listRolling';
+      lastViewType = type;
+      if (entered && calendar.formatIso(info.view.currentStart).slice(0, 10) !== todayStr()) {
+        calendar.gotoDate(todayStr());
+        return;
+      }
+      scheduleDecorUpdate(true);
+    },
     eventsSet: function () { scheduleDecorUpdate(false); },
   });
 
@@ -369,6 +416,7 @@ function scheduleDecorUpdate(navigated) {
   }, 0);
 }
 
+    updateListDecor();
 function updateStrip(navigated) {
   if (!stripEl || !calendar) return;
   ensureStripAttached();
@@ -638,6 +686,96 @@ function applyDayFilter() {
 const chipEls = {};   // cal.id -> button element ('*' = the All chip)
 
 function buildFilterPanel() {
+/* ---------------------------------------------------------------------
+ * List view extras (30-day list + "View all")
+ * Per-day event counts in the day headers, a footer repeating the paging
+ * controls (the toolbar is a long scroll away by then), and an empty state
+ * that offers "View all" instead of a dead end.
+ * ------------------------------------------------------------------- */
+
+let listFooterEl = null;
+
+function isListView() {
+  const type = calendar.view.type;
+  return type === 'listRolling' || type === 'listAll';
+}
+
+function listButton(cls, text, onClick) {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'fc-button fc-button-primary ' + cls;
+  b.textContent = text;
+  b.addEventListener('click', function () {
+    onClick();
+    // The new list starts at the top — bring it back into view (this also
+    // scrolls the embedding page, which the iframe can't do any other way).
+    document.getElementById('calendar').scrollIntoView({ block: 'start' });
+  });
+  return b;
+}
+
+// Like the day strip, the footer sits beside FullCalendar's view harness and
+// has to be put back whenever FullCalendar re-creates it.
+function ensureListFooter() {
+  const harness = document.querySelector('#calendar .fc-view-harness');
+  if (!harness) return false;
+  if (!listFooterEl) {
+    listFooterEl = document.createElement('div');
+    listFooterEl.className = 'list-footer';
+    listFooterEl.appendChild(listButton('lf-next', 'Next 30 days ›', function () { calendar.next(); }));
+    listFooterEl.appendChild(listButton('lf-all', 'View all', function () { calendar.changeView('listAll'); }));
+    listFooterEl.appendChild(listButton('lf-30', '‹ Back to next 30 days', function () { calendar.changeView('listRolling'); }));
+  }
+  if (harness.nextElementSibling !== listFooterEl) harness.after(listFooterEl);
+  return true;
+}
+
+function updateListDecor() {
+  if (!calendar || !ensureListFooter()) return;
+  listFooterEl.hidden = !isListView();
+  if (!isListView()) return;
+
+  // Count the event rows under each day header (so it follows the filters).
+  let cushion = null;
+  let count = 0;
+  function flush() {
+    if (!cushion) return;
+    let badge = cushion.querySelector('.list-day-count');
+    if (!badge) {
+      badge = document.createElement('span');
+      badge.className = 'list-day-count';
+      cushion.insertBefore(badge, cushion.firstChild);
+    }
+    badge.textContent = count + (count === 1 ? ' event' : ' events');
+  }
+  document.querySelectorAll('#calendar .fc-list-table tr').forEach(function (tr) {
+    if (tr.classList.contains('fc-list-day')) {
+      flush();
+      cushion = tr.querySelector('.fc-list-day-cushion');
+      count = 0;
+    } else if (tr.classList.contains('fc-list-event')) {
+      count++;
+    }
+  });
+  flush();
+}
+
+// Empty list: say which range was empty and offer the way out.
+function listEmptyContent(arg) {
+  const wrap = document.createElement('div');
+  wrap.className = 'list-empty';
+  const p = document.createElement('p');
+  wrap.appendChild(p);
+  if (arg.view.type === 'listAll') {
+    p.textContent = 'No upcoming events.';
+  } else {
+    const fromToday = calendar.formatIso(arg.view.currentStart).slice(0, 10) === todayStr();
+    p.textContent = fromToday ? 'No events in the next 30 days.' : 'No events in these 30 days.';
+    wrap.appendChild(listButton('', 'View all', function () { calendar.changeView('listAll'); }));
+  }
+  return { domNodes: [wrap] };
+}
+
   const list = document.getElementById('filter-list');
 
   const all = document.createElement('button');
