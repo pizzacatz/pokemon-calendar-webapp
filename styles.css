@@ -239,7 +239,8 @@ a { color: var(--border); }
   margin-bottom: 10px;
 }
 
-/* Popover ("+n more") */
+/* Popover ("+n more") — currently unused: app.js opens the day-list modal
+   instead. Kept so the popover is themed if it ever comes back. */
 .fc .fc-popover { background: var(--inner); border: 1px solid var(--border); }
 .fc .fc-popover-header { background: var(--bg); color: var(--text); }
 
