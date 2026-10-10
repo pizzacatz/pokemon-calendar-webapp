@@ -348,7 +348,7 @@ a { color: var(--border); }
 .modal-media a { font-size: 0.85rem; }
 
 /* Day event-list modal (mobile month view) */
-.day-list { display: flex; flex-direction: column; }
+.day-list { display: flex; flex-direction: column; overflow-y: auto; }
 .day-item {
   position: relative;
   display: block;

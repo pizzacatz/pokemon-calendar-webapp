@@ -214,6 +214,14 @@ function initCalendar() {
       }
     },
 
+    // "+n more" opens the day-list modal instead of FullCalendar's popover:
+    // the popover is absolutely positioned, so the embedding iframe can't
+    // grow to fit it and clips it. Returning true suppresses the popover.
+    moreLinkClick: function (info) {
+      openDayModal(calendar.formatIso(info.date).slice(0, 10));
+      return true;
+    },
+
     // In list rows: inline time under the title (mobile hides the time column
     // and shows this instead), then the location as a Maps directions link.
     eventDidMount: function (info) {
@@ -545,6 +553,11 @@ function renderDayList(dateStr) {
 function openDayModal(dateStr) {
   dayModal.currentDate = dateStr;
   renderDayList(dateStr);
+  // Embedded: the box has no viewport clamp (the iframe grows to fit), so a
+  // very busy day would stretch the host page. Scroll the list past ~60% of
+  // the screen instead — screen height is the only real size visible in here.
+  dayModal.list.style.maxHeight =
+    window.parent !== window ? Math.round(window.screen.availHeight * 0.6) + 'px' : '';
   dayModal.overlay.hidden = false;
   anchorModal(dayModal.overlay);
   postHeight();
