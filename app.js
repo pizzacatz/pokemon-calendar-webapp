@@ -407,6 +407,7 @@ function scheduleDecorUpdate(navigated) {
   setTimeout(function () {
     updateStrip(navigated);
     updateMonthDots();
+    updateListDecor();
     syncEmptyNote();
     // Keep an open day-list modal in sync with filter/data changes.
     if (dayModal.overlay && !dayModal.overlay.hidden && dayModal.currentDate) {
@@ -416,7 +417,6 @@ function scheduleDecorUpdate(navigated) {
   }, 0);
 }
 
-    updateListDecor();
 function updateStrip(navigated) {
   if (!stripEl || !calendar) return;
   ensureStripAttached();
@@ -676,17 +676,6 @@ function applyDayFilter() {
 }
 
 /* ---------------------------------------------------------------------
- * Filter chips (custom — FullCalendar has no built-in filter widget). PRD §5.2
- * Model: chips are active FILTERS. Nothing selected = show everything, with
- * the "All" chip lit as the resting state. Tapping a category shows only the
- * selected categories (additive); "All" (or unselecting the last category)
- * resets. Sources are added/removed so it works in every view.
- * ------------------------------------------------------------------- */
-
-const chipEls = {};   // cal.id -> button element ('*' = the All chip)
-
-function buildFilterPanel() {
-/* ---------------------------------------------------------------------
  * List view extras (30-day list + "View all")
  * Per-day event counts in the day headers, a footer repeating the paging
  * controls (the toolbar is a long scroll away by then), and an empty state
@@ -776,6 +765,17 @@ function listEmptyContent(arg) {
   return { domNodes: [wrap] };
 }
 
+/* ---------------------------------------------------------------------
+ * Filter chips (custom — FullCalendar has no built-in filter widget). PRD §5.2
+ * Model: chips are active FILTERS. Nothing selected = show everything, with
+ * the "All" chip lit as the resting state. Tapping a category shows only the
+ * selected categories (additive); "All" (or unselecting the last category)
+ * resets. Sources are added/removed so it works in every view.
+ * ------------------------------------------------------------------- */
+
+const chipEls = {};   // cal.id -> button element ('*' = the All chip)
+
+function buildFilterPanel() {
   const list = document.getElementById('filter-list');
 
   const all = document.createElement('button');
