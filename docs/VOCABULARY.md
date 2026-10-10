@@ -7,6 +7,24 @@ project. Read 1 to test yourself, 2 to decode it, 3 to make it stick.
 
 ---
 
+## UI names — what to call each overlay
+
+Use these names when asking for changes, so "the popup" is never ambiguous.
+
+| Name | What it is | How you get there | In the code |
+|---|---|---|---|
+| **Day-list modal** | The box listing every event on one day: title, with time (and player count) underneath. Deliberately sparse — it is a list to pick from, not a place for details. 640px wide on desktop. | Desktop: click **+n more** in a Month cell. Phone: tap a day in Month view. | `#day-modal`, `openDayModal()` |
+| **Event detail modal** (a.k.a. "event popup" in the README) | The box showing one event in full: when, where, players, links, images, copy buttons. 440px wide. | Click an event anywhere, or a row in the day-list modal (then **‹ Back** returns to the list). | `#event-modal`, `openEventModal()` |
+| **"+n more" link** | The grey "+4 more" text at the bottom of a busy Month cell on desktop. | — | `.fc-daygrid-more-link`, `moreLinkClick` |
+| **"+n more" popover** | FullCalendar's own small floating list anchored to the day cell. **Retired** (it got clipped by the embed); the link opens the day-list modal instead. Its styles remain as a fallback. | Not reachable any more. | `.fc-popover` |
+| **Day strip** | The row of seven day buttons at the top of Week view. Not an overlay — listed here because it also has "day" in its name. | Week view. | `.day-strip` |
+
+"Modal" = a box that dims the page behind it and must be closed.
+"Popover" = a small floating panel attached to the thing you clicked, with
+no dimming. This app now only uses modals.
+
+---
+
 ## 1. The jargon-dense version
 
 ### What it is
@@ -23,7 +41,7 @@ Cloud Console. `app.js` is a single **imperative DOM-manipulation
 script** — no virtual DOM, no component framework — that configures
 FullCalendar declaratively and then hand-builds three custom UI pieces
 on top of it: a **day-strip view** (a widget-style 7-day picker feeding
-a filtered list), a mobile **day-list modal**, and an **event detail
+a filtered list), a **day-list modal**, and an **event detail
 modal**.
 
 ### Rendering, filtering, and state
@@ -124,7 +142,7 @@ Google is told to only honor requests coming from this site's own domain
 manipulation**) rather than using a framework that redraws things for
 you, and on top of the calendar widget it hand-builds three extra
 screens: a horizontal week-of-buttons picker (**day-strip view**), a
-popup listing everything on one tapped day (**day-list modal**), and a
+popup listing everything on one chosen day (**day-list modal**), and a
 popup showing one event's full details (**event detail modal**).
 
 Which category chips are "on" is tracked as a simple list of selected
@@ -224,7 +242,7 @@ repo's files as-is and handing them to GitHub Pages (a deploy
 | **CDN (pinned dependency)** | loading a library from a public host at a fixed version | `fullcalendar@6.1.21` and the Google Calendar plugin, pinned in `index.html`'s `<script>` tags |
 | **plugin** | an add-on module a library exposes to extend it | FullCalendar's `@fullcalendar/google-calendar` plugin, loaded as its own CDN script |
 | **imperative DOM manipulation** | building/updating the page by directly calling DOM methods | `app.js` throughout — `document.createElement`, `.appendChild`, manual class toggling |
-| **custom view** | a widget-style screen the app builds beyond the library's defaults | the `weekStrip` day-strip view and the mobile day/event modals in `app.js` |
+| **custom view** | a widget-style screen the app builds beyond the library's defaults | the `weekStrip` day-strip view and the day-list / event detail modals in `app.js` |
 | **Set-based filter state** | tracked selection using a JS `Set`, empty = "no filter" | `activeCats` in `app.js`; `catVisible()` checks `activeCats.size === 0` |
 | **XSS mitigation** | avoiding injected HTML/script from untrusted text | `renderDescription`/`openEventModal` use `textContent`/`createTextNode`, never `innerHTML`, for calendar-sourced text |
 

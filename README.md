@@ -114,6 +114,10 @@ routes each height message to its own iframe automatically.
   modal (title, time below, › chevrons); list rows stack title / time /
   address; toolbar stacks; modals get a full-width bottom Close button and
   anchor near the tap inside embeds.
+- **Busy days on desktop:** Month cells show up to 4 rows, then a "+n more"
+  link that opens the same day-list modal as a phone tap (not FullCalendar's
+  popover, which the embed clipped). Names for each overlay are in
+  `docs/VOCABULARY.md` → "UI names".
 - **Event popup:** title, when (ET), where (Google Maps directions link),
   description text (URLs become "Event page" links), inline images from Drive
   attachments or direct image URLs in the description. Never links to the
