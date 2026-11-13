@@ -1150,6 +1150,48 @@ function renderDescription(container, text) {
 }
 
 /* ---------------------------------------------------------------------
+ * "Last updated" note
+ * Shows when the newest event was ADDED to any calendar (edits to existing
+ * events don't count). The Calendar API can't sort by creation time, so
+ * each calendar is asked for only its events' `created` field (a few KB —
+ * calendars hold a few hundred events) and the newest wins.
+ * ------------------------------------------------------------------- */
+
+// Newest `created` timestamp (ms) in one calendar; 0 on failure.
+function newestCreated(cal, pageToken) {
+  const url = 'https://www.googleapis.com/calendar/v3/calendars/' +
+    encodeURIComponent(cal.googleCalendarId) +
+    '/events?maxResults=2500&fields=items(created),nextPageToken' +
+    (pageToken ? '&pageToken=' + encodeURIComponent(pageToken) : '') +
+    '&key=' + encodeURIComponent(GOOGLE_CALENDAR_API_KEY);
+  return fetch(url)
+    .then(function (r) { return r.ok ? r.json() : {}; })
+    .then(function (d) {
+      const here = (d.items || []).reduce(function (max, ev) {
+        return Math.max(max, Date.parse(ev.created) || 0);
+      }, 0);
+      if (!d.nextPageToken) return here;
+      return newestCreated(cal, d.nextPageToken).then(function (rest) { return Math.max(here, rest); });
+    })
+    .catch(function () { return 0; });
+}
+
+function initLastUpdated() {
+  const el = document.getElementById('last-updated');
+  if (!el) return;
+  Promise.all(CALENDARS.map(function (cal) { return newestCreated(cal); })).then(function (times) {
+    const newest = Math.max.apply(null, times);
+    if (!newest) return;   // nothing reachable: leave the note hidden
+    const when = new Date(newest).toLocaleString('en-US', {
+      timeZone: DISPLAY_TIME_ZONE, month: 'short', day: 'numeric', year: 'numeric',
+      hour: 'numeric', minute: '2-digit',
+    });
+    el.textContent = 'Last updated ' + when + ' ET';
+    el.hidden = false;
+  });
+}
+
+/* ---------------------------------------------------------------------
  * Boot
  * ------------------------------------------------------------------- */
 
@@ -1161,4 +1203,5 @@ document.addEventListener('DOMContentLoaded', function () {
   initModal();
   initDayModal();
   initCalendar();
+  initLastUpdated();
 });

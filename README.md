@@ -137,6 +137,10 @@ routes each height message to its own iframe automatically.
   URL in the description.
   Uses `navigator.clipboard` with an `execCommand('copy')` fallback, so it
   works inside cross-origin iframes even without `allow="clipboard-write"`.
+- **"Last updated" note** under the calendar (embeds too): when the newest
+  event was *added* to any calendar, in ET. Edits to existing events don't
+  count. The API can't sort by creation time, so the app fetches only each
+  event's `created` field per calendar (a few KB) and takes the newest.
 - **Locations** are cleaned of the upstream feed's `, US, , City/US` tail.
 
 ## Community event submissions (Google Form)

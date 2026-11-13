@@ -413,6 +413,14 @@ a { color: var(--border); }
 .day-item-time { display: block; margin-top: 2px; padding-left: 16px; font-size: 0.82rem; color: var(--text-muted); }
 .day-item-empty { color: var(--text-muted); margin: 8px 0; }
 
+/* "Last updated" note under the calendar (shown in embeds too) */
+.last-updated {
+  margin: 6px 2px 0;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  text-align: right;
+}
+
 /* Month-cell activity dots (visible on mobile only) */
 .day-dots { display: none; }
 
