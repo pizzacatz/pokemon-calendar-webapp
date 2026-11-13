@@ -1,0 +1,31 @@
+# Daily: log the dates new events were added to the calendars
+# (docs/update-history.csv). Runs after the 5 AM ET Apps Script sync.
+# Pushes made with GITHUB_TOKEN don't trigger other workflows, so this
+# never redeploys the site.
+name: Record update history
+
+on:
+  schedule:
+    - cron: '30 11 * * *'   # 6:30 AM EST / 7:30 AM EDT
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-history
+
+jobs:
+  record:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 .github/scripts/update_history.py
+      - name: Commit if anything changed
+        run: |
+          git diff --quiet docs/update-history.csv && exit 0
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898299+github-actions[bot]@users.noreply.github.com'
+          git add docs/update-history.csv
+          git commit -m 'Update history: new events added'
+          git push
