@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """Record the dates events were added to the calendars.
 
-Keeps docs/update-history.csv: one row per date (US Eastern) on which new
-events appeared in any of the app's Google Calendars, with how many were
-added. Run daily by .github/workflows/update-history.yml; safe to run by hand
-(`python3 .github/scripts/update_history.py`) any time.
+Keeps update-history.csv: one row per date (US Eastern) on which new events
+appeared in any of the app's Google Calendars, with how many were added.
+The CSV lives on the `update-history` branch (kept off main so the daily
+bot commits never get in the way of local work). Run daily by
+.github/workflows/update-history.yml with the CSV's path as the argument;
+by hand: `python3 .github/scripts/update_history.py path/to/update-history.csv`.
 
 Each run counts events whose `created` time is newer than the newest one
 already logged, so re-running never double-counts. The first run backfilled
@@ -15,6 +17,7 @@ import csv
 import json
 import os
 import re
+import sys
 import urllib.parse
 import urllib.request
 from collections import defaultdict
@@ -22,7 +25,6 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-LOG = os.path.join(ROOT, 'docs', 'update-history.csv')
 ET = ZoneInfo('America/New_York')
 # The API key is restricted to these referrers; identify as the live site.
 REFERER = 'https://pizzacatz.github.io/pokemon-calendar-webapp/'
@@ -57,9 +59,10 @@ def created_times(cal_id, key):
 
 
 def main():
+    log = sys.argv[1] if len(sys.argv) > 1 else 'update-history.csv'
     rows = []
-    if os.path.exists(LOG):
-        with open(LOG, newline='', encoding='utf-8') as f:
+    if os.path.exists(log):
+        with open(log, newline='', encoding='utf-8') as f:
             rows = list(csv.DictReader(f))
     by_date = {r['date_et']: r for r in rows}
     watermark = max((datetime.fromisoformat(r['newest_added_utc']) for r in rows), default=None)
@@ -80,8 +83,7 @@ def main():
         r['events_added'] = int(r['events_added']) + n
         r['newest_added_utc'] = max(filter(None, [r['newest_added_utc'], newest[d].isoformat()]))
 
-    os.makedirs(os.path.dirname(LOG), exist_ok=True)
-    with open(LOG, 'w', newline='', encoding='utf-8') as f:
+    with open(log, 'w', newline='', encoding='utf-8') as f:
         w = csv.DictWriter(f, fieldnames=FIELDS)
         w.writeheader()
         for d in sorted(by_date):

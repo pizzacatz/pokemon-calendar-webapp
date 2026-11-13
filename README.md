@@ -141,10 +141,12 @@ routes each height message to its own iframe automatically.
   event was *added* to any calendar, in ET. Edits to existing events don't
   count. The API can't sort by creation time, so the app fetches only each
   event's `created` field per calendar (a few KB) and takes the newest.
-  The full history of those dates is in `docs/update-history.csv` (one row
-  per ET date events were added, with a count). The "Record update history"
-  Action appends to it daily at 6:30 AM ET; rows before 2026-11-12 were
-  backfilled from the events still present then (deleted ones are missing).
+  The full history of those dates is `update-history.csv` on the
+  `update-history` branch (one row per ET date events were added, with a
+  count) — kept off `main` so the daily "Record update history" Action
+  (6:30 AM ET) never makes `main` move under local work. Rows before
+  2026-11-12 were backfilled from the events still present then (deleted
+  ones are missing).
 - **Locations** are cleaned of the upstream feed's `, US, , City/US` tail.
 
 ## Community event submissions (Google Form)
