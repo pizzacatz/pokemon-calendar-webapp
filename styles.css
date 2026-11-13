@@ -416,8 +416,8 @@ a { color: var(--border); }
 /* "Last updated" note under the calendar (shown in embeds too) */
 .last-updated {
   margin: 6px 2px 0;
-  font-size: 0.72rem;
-  color: var(--text-muted);
+  font-size: 1rem;            /* the app's base text size */
+  color: var(--text);
   text-align: right;
 }
 
