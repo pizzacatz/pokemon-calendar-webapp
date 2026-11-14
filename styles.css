@@ -212,6 +212,17 @@ a { color: var(--border); }
 .event-loc { margin-top: 3px; font-size: 0.78rem; }
 .event-loc a { color: var(--text-muted); text-decoration: underline; }
 .event-loc a:hover { color: var(--border); }
+/* Add-to-calendar icons in list rows */
+.event-cal-links { display: flex; gap: 6px; margin-top: 4px; }
+.cal-link {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px;
+  color: var(--text-muted);
+  border: 1px solid var(--text-muted);
+  border-radius: 6px;
+}
+.cal-link svg { width: 16px; height: 16px; }
+.cal-link:hover { color: var(--border); border-color: var(--border); }
 
 /* Inline time under a list-row title — mobile only (desktop keeps the column) */
 .event-time-inline { display: none; }
@@ -362,6 +373,10 @@ a { color: var(--border); }
 .modal-action:active { background: var(--hover); }
 .modal-action.copied { border-color: var(--border); color: var(--border); }
 .modal-copy-status { font-size: 0.8rem; color: var(--text-muted); }
+/* Add-to-calendar buttons share the copy buttons' look; a gap sets them apart */
+.modal-cal-links { display: inline-flex; gap: 8px; }
+.modal-copy-group { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; }
+.modal-cal-links a { text-decoration: none; }
 .modal-media { display: flex; flex-direction: column; gap: 8px; }
 .modal-media:not(:empty) { margin-top: 12px; }
 .modal-media img {

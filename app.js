@@ -270,13 +270,21 @@ function initCalendar() {
       cell.appendChild(timeEl);
 
       const loc = info.event.extendedProps && info.event.extendedProps.location;
-      if (!loc) return;
-      const div = document.createElement('div');
-      div.className = 'event-loc';
-      const a = locationLink(loc);
-      a.addEventListener('click', function (e) { e.stopPropagation(); }); // don't open the popup too
-      div.appendChild(a);
-      cell.appendChild(div);
+      if (loc) {
+        const div = document.createElement('div');
+        div.className = 'event-loc';
+        const a = locationLink(loc);
+        a.addEventListener('click', function (e) { e.stopPropagation(); }); // don't open the popup too
+        div.appendChild(a);
+        cell.appendChild(div);
+      }
+
+      // Add-to-calendar icons (Google Calendar link + .ics download).
+      const cal = document.createElement('div');
+      cal.className = 'event-cal-links';
+      cal.appendChild(googleCalLink(info.event, 'cal-link'));
+      cal.appendChild(icsLink(info.event, 'cal-link'));
+      cell.appendChild(cal);
     },
 
     // Keep the day strip, month dots and iframe height in sync with data/navigation.
@@ -846,7 +854,7 @@ const modal = {
   whereRow: null, where: null,
   linkRow: null, link: null,
   media: null, back: null,
-  copy: null, copyDiscord: null, copyStatus: null,
+  copy: null, copyDiscord: null, copyStatus: null, calLinks: null,
   event: null,        // the event currently shown, for the copy buttons
   fromDay: null,      // date the day-list modal was showing, for back-navigation
 };
@@ -866,6 +874,7 @@ function initModal() {
   modal.copy        = document.getElementById('modal-copy');
   modal.copyDiscord = document.getElementById('modal-copy-discord');
   modal.copyStatus  = document.getElementById('modal-copy-status');
+  modal.calLinks    = document.getElementById('modal-cal-links');
 
   modal.copy.addEventListener('click', function () {
     if (modal.event) copyEventText(modal.copy, formatEventPlain(modal.event), 'Copied!');
@@ -932,6 +941,10 @@ function openEventModal(event, fromDay) {
   modal.title.textContent = event.title || '(untitled event)';
   modal.swatch.style.background = categoryColor(event);
   modal.when.textContent = formatWhen(event);
+
+  modal.calLinks.textContent = '';
+  modal.calLinks.appendChild(googleCalLink(event, 'modal-action'));
+  modal.calLinks.appendChild(icsLink(event, 'modal-action'));
 
   // Location -> Google Maps directions link.
   const loc = event.extendedProps && event.extendedProps.location;
@@ -1071,6 +1084,159 @@ function formatEventDiscord(event) {
   if (loc)  lines.push('Where: [' + loc + '](<' + mapsUrl(loc) + '>)');
   if (url)  lines.push('Link: [Official event page](<' + url + '>)');
   return lines.join('\n');
+}
+
+/* ---------------------------------------------------------------------
+ * Add to calendar (Google Calendar link / .ics file for Apple, Outlook…)
+ * ------------------------------------------------------------------- */
+
+// Event dates are fake UTC (UTC fields = Eastern wall time), so these
+// produce Eastern wall-clock stamps, paired with an America/New_York zone.
+function pad2(n) { return (n < 10 ? '0' : '') + n; }
+function icsDate(d) {
+  return d.getUTCFullYear() + pad2(d.getUTCMonth() + 1) + pad2(d.getUTCDate());
+}
+function icsDateTime(d) {
+  return icsDate(d) + 'T' + pad2(d.getUTCHours()) + pad2(d.getUTCMinutes()) + pad2(d.getUTCSeconds());
+}
+
+// Start/end stamps for an event. All-day ends are exclusive (next day);
+// timed events with no end get 2 hours.
+function calStamps(event) {
+  const start = event.start;
+  if (event.allDay) {
+    const end = event.end || new Date(start.getTime() + 86400000);
+    return { allDay: true, start: icsDate(start), end: icsDate(end) };
+  }
+  const end = event.end || new Date(start.getTime() + 2 * 3600000);
+  return { allDay: false, start: icsDateTime(start), end: icsDateTime(end) };
+}
+
+// Text to put in the calendar entry's notes: the official link, then any
+// other description text.
+function calDetails(event) {
+  const url = eventUrl(event);
+  const desc = plainDescription(event);
+  if (!url) return desc;
+  if (!desc || desc.indexOf(url) !== -1) return desc || url;   // link already in the text
+  return url + '\n\n' + desc;
+}
+
+const CAL_ICON_GOOGLE =
+  '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+  '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>' +
+  '<text x="12" y="19.5" text-anchor="middle" font-size="8.5" font-weight="bold" font-family="Arial, sans-serif" fill="currentColor" stroke="none">G</text></svg>';
+const CAL_ICON_ICS =
+  '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+  '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M12 13v6M9 16l3 3 3-3"/></svg>';
+
+function calAnchor(cls, title, icon) {
+  const a = document.createElement('a');
+  a.className = cls;
+  a.title = title;
+  a.setAttribute('aria-label', title);
+  a.innerHTML = icon;
+  a.addEventListener('click', function (e) { e.stopPropagation(); });   // list rows: don't open the popup
+  return a;
+}
+
+// "Add to Google Calendar" — opens Google's prefilled new-event page.
+function googleCalLink(event, cls) {
+  const t = calStamps(event);
+  const params = new URLSearchParams({
+    action: 'TEMPLATE',
+    text: event.title || '(untitled event)',
+    dates: t.start + '/' + t.end,
+  });
+  if (!t.allDay) params.set('ctz', DISPLAY_TIME_ZONE);
+  const loc = event.extendedProps && event.extendedProps.location;
+  if (loc) params.set('location', loc);
+  const details = calDetails(event);
+  if (details) params.set('details', details);
+
+  const a = calAnchor(cls, 'Add to Google Calendar', CAL_ICON_GOOGLE);
+  a.href = 'https://calendar.google.com/calendar/render?' + params.toString();
+  a.target = '_blank';
+  a.rel = 'noopener noreferrer';
+  return a;
+}
+
+// "Download .ics" — Apple Calendar, Outlook, etc. Built on click.
+function icsLink(event, cls) {
+  const a = calAnchor(cls, 'Add to Apple / Outlook calendar (.ics)', CAL_ICON_ICS);
+  a.href = '#';
+  a.addEventListener('click', function (e) {
+    e.preventDefault();
+    downloadIcs(event);
+  });
+  return a;
+}
+
+function icsEscape(text) {
+  return String(text).replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
+}
+
+// Fold to 75-octet lines (RFC 5545), never splitting a UTF-8 character.
+function icsFold(line) {
+  const enc = new TextEncoder();
+  if (enc.encode(line).length <= 75) return line;
+  const out = [];
+  let cur = '', bytes = 0, limit = 75;
+  for (const ch of line) {
+    const n = enc.encode(ch).length;
+    if (bytes + n > limit) { out.push(cur); cur = ''; bytes = 0; limit = 74; }
+    cur += ch; bytes += n;
+  }
+  out.push(cur);
+  return out.join('\r\n ');
+}
+
+// US Eastern rules (in force since 2007), so TZID references resolve in
+// every client.
+const ICS_VTIMEZONE = [
+  'BEGIN:VTIMEZONE', 'TZID:America/New_York',
+  'BEGIN:DAYLIGHT', 'TZOFFSETFROM:-0500', 'TZOFFSETTO:-0400', 'TZNAME:EDT',
+  'DTSTART:20070311T020000', 'RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=2SU', 'END:DAYLIGHT',
+  'BEGIN:STANDARD', 'TZOFFSETFROM:-0400', 'TZOFFSETTO:-0500', 'TZNAME:EST',
+  'DTSTART:20071104T020000', 'RRULE:FREQ=YEARLY;BYMONTH=11;BYDAY=1SU', 'END:STANDARD',
+  'END:VTIMEZONE',
+];
+
+function buildIcs(event) {
+  const t = calStamps(event);
+  const now = new Date();
+  const stamp = icsDateTime(now) + 'Z';   // real UTC, so a real Date is right here
+  const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Pokemon Events Calendar//EN', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH'];
+  if (!t.allDay) lines.push.apply(lines, ICS_VTIMEZONE);
+  lines.push('BEGIN:VEVENT');
+  lines.push('UID:' + (event.id || stamp) + '@pokemon-calendar');
+  lines.push('DTSTAMP:' + stamp);
+  if (t.allDay) {
+    lines.push('DTSTART;VALUE=DATE:' + t.start, 'DTEND;VALUE=DATE:' + t.end);
+  } else {
+    lines.push('DTSTART;TZID=America/New_York:' + t.start, 'DTEND;TZID=America/New_York:' + t.end);
+  }
+  lines.push('SUMMARY:' + icsEscape(event.title || '(untitled event)'));
+  const loc = event.extendedProps && event.extendedProps.location;
+  if (loc) lines.push('LOCATION:' + icsEscape(loc));
+  const details = calDetails(event);
+  if (details) lines.push('DESCRIPTION:' + icsEscape(details));
+  const url = eventUrl(event);
+  if (url) lines.push('URL:' + url);
+  lines.push('END:VEVENT', 'END:VCALENDAR');
+  return lines.map(icsFold).join('\r\n') + '\r\n';
+}
+
+function downloadIcs(event) {
+  const blob = new Blob([buildIcs(event)], { type: 'text/calendar;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = (event.title || 'event').replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '-').slice(0, 60) + '.ics';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(function () { URL.revokeObjectURL(url); }, 10000);
 }
 
 function setCopyStatus(text) {

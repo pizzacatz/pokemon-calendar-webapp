@@ -137,6 +137,11 @@ routes each height message to its own iframe automatically.
   URL in the description.
   Uses `navigator.clipboard` with an `execCommand('copy')` fallback, so it
   works inside cross-origin iframes even without `allow="clipboard-write"`.
+- **Add to calendar:** every List/Week row and the event popup have two
+  icons — a Google Calendar link (prefilled new-event page, `ctz` =
+  America/New_York) and an `.ics` download for Apple Calendar / Outlook
+  (built in the browser, with a VTIMEZONE so times stay Eastern). The notes
+  carry the official event link.
 - **"Last updated" note** under the calendar (embeds too): when the newest
   event was *added* to any calendar, in ET. Edits to existing events don't
   count. The API can't sort by creation time, so the app fetches only each
